@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红色资源</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        header {
+            background-color: #c62828;
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        main {
+            max-width: 960px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+        }
+
+        .card h3 {
+            color: #c62828;
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>红色资源</h1>
+        <p>传承红色基因，弘扬革命精神</p>
+    </header>
+
+    <main>
+        <div class="card-grid">
+            <div class="card">
+                <h3>党史学习</h3>
+                <p>回顾中国共产党的光辉历程，学习党的宝贵经验和优良传统。</p>
+            </div>
+            <div class="card">
+                <h3>革命故事</h3>
+                <p>聆听革命先烈的英勇事迹，感受他们的坚定信仰和无私奉献。</p>
+            </div>
+            <div class="card">
+                <h3>红色经典</h3>
+                <p>品读红色经典著作，从中汲取智慧和力量。</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 红色资源 All Rights Reserved</p>
+    </footer>
+</body>
+</html>
