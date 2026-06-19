@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红色资源名录检索与展示系统</title>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=d2092a327825766be0b68c9c1fd45e46"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        /* 头部样式 */
+        .header {
+            background: linear-gradient(135deg, #c41e2a 0%, #a01822 100%);
+            color: #fff;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header-logo {
+            width: 80px;
+            height: 80px;
+            background: #fff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 500;
+            letter-spacing: 2px;
+        }
+        .header-subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        /* 搜索筛选容器 */
+        .search-filter-container {
+            background: #fff;
+            padding: 20px 30px;
+            border-bottom: 1px solid #eee;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .search-box input {
+            flex: 1;
+            height: 42px;
+            padding: 0 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .search-box input:focus {
+            border-color: #c41e2a;
+        }
+        .search-box input::placeholder {
+            color: #999;
+        }
+        .search-btn {
+            height: 42px;
+            padding: 0 24px;
+            background: #c41e2a;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        .search-btn:hover {
+            background: #a01822;
+        }
+
+        /* 复选框组 */
+        .filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+        }
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .filter-item input[type="checkbox"] {
+            display: none;
+        }
+        .checkbox-custom {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #d0d0d0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .checkbox-custom::after {
+            content: "✓";
+            color: #fff;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .filter-item input[type="checkbox"]:checked + .checkbox-custom {
+            background: #c41e2a;
+            border-color: #c41e2a;
+        }
+        .filter-item input[type="checkbox"]:checked + .checkbox-custom::after {
+            opacity: 1;
+        }
+        .filter-label {
+            font-size: 14px;
+            color: #555;
+        }
+        .filter-item:hover .filter-label {
+            color: #c41e2a;
+        }
+
+        /* 已选标签 */
+        .selected-tags {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            min-height: 20px;
+        }
+        .selected-tags:empty {
+            display: none;
+        }
+        .selected-tags-label {
+            font-size: 12px;
+            color: #999;
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #fff5f5;
+            border: 1px solid #ffcdd2;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #c41e2a;
+        }
+        .tag-remove {
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+        }
+        .tag-remove:hover {
+            color: #a01822;
+        }
+        .clear-all {
+            font-size: 12px;
+            color: #999;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .clear-all:hover {
+            color: #c41e2a;
+        }
+
+        /* 搜索结果统计 */
+        .result-stats {
+            padding: 12px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        .result-stats span {
+            color: #c41e2a;
+            font-weight: 500;
+        }
+
+        /* 主体内容区 */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 200px);
+            margin: 15px;
+            gap: 15px;
+        }
+
+        /* 左侧场所类列表 */
+        .left-panel {
+            width: 320px;
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 15px 20px;
+            background: #fafafa;
+            border-bottom: 1px solid #eee;
+            font-size: 16px;
+            font-weight: 500;
+            color: #c41e2a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .panel-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel-header::before {
+            content: "";
+            width: 4px;
+            height: 18px;
+            background: #c41e2a;
+            border-radius: 2px;
+        }
+        .panel-count {
+            font-size: 12px;
+            color: #999;
+            font-weight: normal;
+        }
+        .category-tabs {
+            display: flex;
+            padding: 10px 15px;
+            gap: 8px;
+            border-bottom: 1px solid #eee;
+            flex-wrap: wrap;
+        }
+        .category-tab {
+            padding: 6px 12px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .category-tab:hover {
+            background: #f0e6e6;
+        }
+        .category-tab.active {
+            background: #c41e2a;
+            color: #fff;
+        }
+        .place-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .place-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 4px;
+        }
+        .place-item:hover {
+            background: #fafafa;
+        }
+        .place-item.active {
+            background: #fff5f5;
+            border-left: 3px solid #c41e2a;
+        }
+        .place-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        .place-item.active .place-name {
+            color: #c41e2a;
+        }
+        .place-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #999;
+        }
+        .place-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 右侧详情区 */
+        .right-panel {
+            flex: 1;
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .detail-header {
+            padding: 20px 25px;
+            background: linear-gradient(135deg, #c41e2a 0%, #d43543 100%);
+            color: #fff;
+        }
+        .detail-title {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+        .detail-tags {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .detail-tag {
+            padding: 4px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .detail-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+        }
+        .detail-section {
+            margin-bottom: 25px;
+        }
+        .detail-section-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #c41e2a;
+            display: inline-block;
+        }
+        .detail-content {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #555;
+        }
+        .detail-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #999;
+        }
+        .info-value {
+            font-size: 14px;
+            color: #333;
+        }
+
+        /* 地图容器 */
+        .map-container {
+            width: 100%;
+            height: 300px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        /* 相关资源 */
+        .related-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        .related-item {
+            padding: 12px;
+            background: #fafafa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .related-item:hover {
+            background: #fff5f5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .related-name {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        .related-area {
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+        }
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .empty-text {
+            font-size: 14px;
+        }
+
+        /* 自定义信息窗体样式 */
+        .info-window {
+            padding: 10px;
+            max-width: 250px;
+        }
+        .info-window-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #c41e2a;
+            margin-bottom: 8px;
+        }
+        .info-window-desc {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        .info-window-btn {
+            padding: 4px 12px;
+            background: #c41e2a;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .info-window-btn:hover {
+            background: #a01822;
+        }
+
+        /* 响应式适配 */
+        @media screen and (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+                height: auto;
+            }
+            .left-panel {
+                width: 100%;
+                max-height: 300px;
+            }
+            .right-panel {
+                min-height: 400px;
+            }
+            .detail-info-grid {
+                grid-template-columns: 1fr;
+            }
+            .filter-group {
+                gap: 8px 15px;
+            }
+            .filter-label {
+                font-size: 13px;
+            }
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-logo">
+                <img src="2.png" alt="北京红色资源" class="logo-img">
+            </div>
+            <div>
+                <h1>红色资源名录检索与展示系统</h1>
+                <div class="header-subtitle">Beijing Red Resources Directory</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 搜索筛选 -->
+    <div class="search-filter-container">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="请输入资源名称、地址等关键词进行搜索...">
+            <button class="search-btn" id="searchBtn">搜索</button>
+        </div>
+        <div class="filter-group" id="filterGroup">
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="all" checked>
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">全部</span>
+            </label>
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="旧址">
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">旧址</span>
+            </label>
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="遗址">
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">遗址</span>
+            </label>
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="设施">
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">设施</span>
+            </label>
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="档案">
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">档案</span>
+            </label>
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="文献">
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">文献</span>
+            </label>
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="手稿">
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">手稿</span>
+            </label>
+            <label class="filter-item">
+                <input type="checkbox" name="type" value="实物">
+                <span class="checkbox-custom"></span>
+                <span class="filter-label">实物</span>
+            </label>
+        </div>
+        <div class="selected-tags" id="selectedTags"></div>
+    </div>
+
+    <!-- 主体内容 -->
+    <div class="main-container">
+        <!-- 左侧场所列表 -->
+        <div class="left-panel">
+            <div class="panel-header">
+                <div class="panel-header-left">资源列表</div>
+                <span class="panel-count" id="panelCount">共 0 条</span>
+            </div>
+            <div class="category-tabs">
+                <div class="category-tab active" data-area="all">全部区域</div>
+                <div class="category-tab" data-area="东城区">东城区</div>
+                <div class="category-tab" data-area="西城区">西城区</div>
+                <div class="category-tab" data-area="海淀区">海淀区</div>
+                <div class="category-tab" data-area="丰台区">丰台区</div>
+                <div class="category-tab" data-area="朝阳区">朝阳区</div>
+                <div class="category-tab" data-area="顺义区">顺义区</div>
+            </div>
+            <div class="place-list" id="placeList">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+
+        <!-- 右侧详情区 -->
+        <div class="right-panel" id="rightPanel">
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">📍</div>
+                <div class="empty-text">请从左侧选择一个红色资源查看详情</div>
+            </div>
+            <div id="detailContent" style="display:none; height:100%; display:flex; flex-direction:column;">
+                <div class="detail-header">
+                    <div class="detail-title" id="detailTitle"></div>
+                    <div class="detail-tags" id="detailTags"></div>
+                </div>
+                <div class="detail-body">
+                    <div class="detail-section">
+                        <div class="detail-section-title">基本信息</div>
+                        <div class="detail-info-grid" id="detailInfo"></div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">资源介绍</div>
+                        <div class="detail-content" id="detailDesc"></div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">地理位置</div>
+                        <div class="map-container" id="mapContainer"></div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">相关推荐</div>
+                        <div class="related-list" id="relatedList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 北京红色资源数据（703条，包含经纬度）
+const resourceData = [
+    {id:1,name:"华北西城区第四战斗遗址",type:"遗址",area:"西城区",desc:"华北西城区第四战斗遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市西城区阜成门内大街166号",time:"1943年",protectLevel:"全国重点文物保护单位",lng:116.3876,lat:39.9167},
+    {id:2,name:"红色东城区第四革命旧址",type:"旧址",area:"东城区",desc:"红色东城区第四革命旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市东城区东直门内大街107号",time:"1921年",protectLevel:"区级文物保护单位",lng:116.4234,lat:39.9236},
+    {id:3,name:"华北顺义区第四历史实物",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区天竺路11号",time:"1949年",protectLevel:"国家一级文物",lng:116.6905,lat:40.1825},
+    {id:4,name:"北京顺义区第三草稿",type:"手稿",area:"顺义区",desc:"北京顺义区第三草稿手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市顺义区天竺路2号",time:"1921年",protectLevel:"区级文物保护单位",lng:116.6597,lat:40.1018},
+    {id:5,name:"华北丰台区第一学校旧址",type:"旧址",area:"丰台区",desc:"作为革命旧址，华北丰台区第一学校旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市丰台区卢沟桥路96号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.2884,lat:39.8573},
+    {id:6,name:"红色朝阳区第一革命文献",type:"文献",area:"朝阳区",desc:"红色朝阳区第一革命文献是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市朝阳区酒仙桥路63号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.4512,lat:39.9222},
+    {id:7,name:"抗日西城区第四手迹",type:"手稿",area:"西城区",desc:"抗日西城区第四手迹手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市西城区西直门内大街140号",time:"1923年",protectLevel:"全国重点文物保护单位",lng:116.3673,lat:39.912},
+    {id:8,name:"革命海淀区第三纪念馆",type:"设施",area:"海淀区",desc:"革命海淀区第三纪念馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区颐和园路187号",time:"2019年建成",protectLevel:"全国重点文物保护单位",lng:116.1692,lat:39.989},
+    {id:9,name:"抗日朝阳区第三指挥部旧址",type:"旧址",area:"朝阳区",desc:"抗日朝阳区第三指挥部旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市朝阳区酒仙桥路11号",time:"1921年",protectLevel:"北京市文物保护单位",lng:116.5316,lat:39.9157},
+    {id:10,name:"爱国丰台区第三手稿",type:"手稿",area:"丰台区",desc:"爱国丰台区第三手稿手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市丰台区西四环南路62号",time:"1933年",protectLevel:"区级文物保护单位",lng:116.2062,lat:39.8884},
+    {id:11,name:"抗日东城区第二工具",type:"实物",area:"东城区",desc:"抗日东城区第二工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市东城区王府井大街189号",time:"1949年",protectLevel:"国家一级文物",lng:116.429,lat:39.9188},
+    {id:12,name:"北京朝阳区第五服装",type:"实物",area:"朝阳区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市朝阳区建国路76号",time:"1941年",protectLevel:"北京市文物保护单位",lng:116.4798,lat:39.9411},
+    {id:13,name:"抗日丰台区第二指挥部旧址",type:"旧址",area:"丰台区",desc:"抗日丰台区第二指挥部旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市丰台区丰台路197号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.2003,lat:39.8598},
+    {id:14,name:"革命顺义区第四文集",type:"文献",area:"顺义区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市顺义区后沙峪路194号",time:"1920年",protectLevel:"爱国主义教育基地",lng:116.8268,lat:40.113},
+    {id:15,name:"红色朝阳区第一文献档案",type:"档案",area:"朝阳区",desc:"红色朝阳区第一文献档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市朝阳区建国路138号",time:"1945年",protectLevel:"珍贵历史档案",lng:116.5066,lat:39.9198},
+    {id:16,name:"抗日海淀区第一工具",type:"实物",area:"海淀区",desc:"抗日海淀区第一工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市海淀区学院路196号",time:"1941年",protectLevel:"爱国主义教育基地",lng:116.2657,lat:40.0133},
+    {id:17,name:"革命丰台区第四活动遗址",type:"遗址",area:"丰台区",desc:"革命丰台区第四活动遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市丰台区西四环南路165号",time:"1941年",protectLevel:"爱国主义教育基地",lng:116.2243,lat:39.8988},
+    {id:18,name:"红色朝阳区第二武器",type:"实物",area:"朝阳区",desc:"红色朝阳区第二武器是革命历史的实物见证，具有重要的纪念意义。",address:"北京市朝阳区酒仙桥路153号",time:"1919年",protectLevel:"国家一级文物",lng:116.4905,lat:39.9499},
+    {id:19,name:"抗日丰台区第二展览馆",type:"设施",area:"丰台区",desc:"作为革命历史设施，抗日丰台区第二展览馆为公众提供了了解革命历史的窗口。",address:"北京市丰台区卢沟桥路111号",time:"1987年建成",protectLevel:"国家一级文物",lng:116.264,lat:39.85},
+    {id:20,name:"革命顺义区第二斗争旧址",type:"旧址",area:"顺义区",desc:"革命顺义区第二斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市顺义区天竺路66号",time:"1921年",protectLevel:"区级文物保护单位",lng:116.832,lat:40.1075},
+    {id:21,name:"革命丰台区第一纪念品",type:"实物",area:"丰台区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市丰台区西四环南路31号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.2406,lat:39.881},
+    {id:22,name:"红色丰台区第一历史文献",type:"文献",area:"丰台区",desc:"红色丰台区第一历史文献是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市丰台区南三环西路13号",time:"1938年",protectLevel:"区级文物保护单位",lng:116.2695,lat:39.8737},
+    {id:23,name:"红色朝阳区第一展览馆",type:"设施",area:"朝阳区",desc:"红色朝阳区第一展览馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市朝阳区三里屯路25号",time:"2003年建成",protectLevel:"爱国主义教育基地",lng:116.5089,lat:39.9087},
+    {id:24,name:"抗日顺义区第四选集",type:"文献",area:"顺义区",desc:"抗日顺义区第四选集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市顺义区天竺路180号",time:"1938年",protectLevel:"全国重点文物保护单位",lng:116.7597,lat:40.1215},
+    {id:25,name:"抗日顺义区第三书信",type:"手稿",area:"顺义区",desc:"抗日顺义区第三书信手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市顺义区新国展路165号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.7705,lat:40.1589},
+    {id:26,name:"革命海淀区第一革命档案",type:"档案",area:"海淀区",desc:"革命海淀区第一革命档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区清华西路180号",time:"1921年",protectLevel:"区级文物保护单位",lng:116.2223,lat:39.9792},
+    {id:27,name:"革命海淀区第二工具",type:"实物",area:"海淀区",desc:"革命海淀区第二工具实物保存完整，是开展革命传统教育的重要素材。",address:"北京市海淀区中关村大街78号",time:"1919年",protectLevel:"北京市文物保护单位",lng:116.2674,lat:40.02},
+    {id:28,name:"解放顺义区第五革命文物",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区裕龙大街105号",time:"1949年",protectLevel:"全国重点文物保护单位",lng:116.7214,lat:40.1582},
+    {id:29,name:"抗日朝阳区第三纪念品",type:"实物",area:"朝阳区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市朝阳区三里屯路136号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.5194,lat:39.9237},
+    {id:30,name:"革命丰台区第五会议旧址",type:"旧址",area:"丰台区",desc:"革命丰台区第五会议旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区丰台北路99号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.2942,lat:39.8747},
+    {id:31,name:"解放西城区第四选集",type:"文献",area:"西城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市西城区新街口外大街72号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.3676,lat:39.9098},
+    {id:32,name:"革命西城区第一影像档案",type:"档案",area:"西城区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市西城区西直门内大街155号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.3769,lat:39.9182},
+    {id:33,name:"红色海淀区第四会议旧址",type:"旧址",area:"海淀区",desc:"作为革命旧址，红色海淀区第四会议旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市海淀区颐和园路3号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.2699,lat:40.0062},
+    {id:34,name:"红色西城区第四联络点旧址",type:"旧址",area:"西城区",desc:"红色西城区第四联络点旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市西城区阜成门内大街79号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.3889,lat:39.9207},
+    {id:35,name:"革命海淀区第二革命文物",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区颐和园路58号",time:"1949年",protectLevel:"区级文物保护单位",lng:116.162,lat:40.0146},
+    {id:36,name:"爱国西城区第一选集",type:"文献",area:"西城区",desc:"爱国西城区第一选集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市西城区新街口外大街2号",time:"1920年",protectLevel:"珍贵历史档案",lng:116.375,lat:39.9215},
+    {id:37,name:"华北西城区第四图书馆",type:"设施",area:"西城区",desc:"作为革命历史设施，华北西城区第四图书馆为公众提供了了解革命历史的窗口。",address:"北京市西城区西长安街75号",time:"2019年建成",protectLevel:"珍贵历史档案",lng:116.3693,lat:39.9125},
+    {id:38,name:"解放丰台区第五联络点旧址",type:"旧址",area:"丰台区",desc:"作为革命旧址，解放丰台区第五联络点旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市丰台区西四环南路140号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.2957,lat:39.8502},
+    {id:39,name:"爱国海淀区第四展览馆",type:"设施",area:"海淀区",desc:"爱国海淀区第四展览馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区学院路111号",time:"2003年建成",protectLevel:"全国重点文物保护单位",lng:116.2883,lat:39.9536},
+    {id:40,name:"华北海淀区第四武器",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区颐和园路134号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.3482,lat:40.0151},
+    {id:41,name:"爱国顺义区第一指挥部旧址",type:"旧址",area:"顺义区",desc:"作为革命旧址，爱国顺义区第一指挥部旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市顺义区裕龙大街23号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.751,lat:40.1937},
+    {id:42,name:"爱国海淀区第二服装",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区颐和园路6号",time:"1941年",protectLevel:"北京市文物保护单位",lng:116.2366,lat:39.9928},
+    {id:43,name:"红色西城区第四革命文献",type:"文献",area:"西城区",desc:"红色西城区第四革命文献是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市西城区新街口外大街166号",time:"1935年",protectLevel:"全国重点文物保护单位",lng:116.3649,lat:39.9128},
+    {id:44,name:"北京丰台区第一书信",type:"手稿",area:"丰台区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市丰台区丰台路58号",time:"1923年",protectLevel:"北京市文物保护单位",lng:116.2092,lat:39.8926},
+    {id:45,name:"北京海淀区第四纪念品",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区清华西路1号",time:"1949年",protectLevel:"区级文物保护单位",lng:116.2158,lat:40.0083},
+    {id:46,name:"抗日丰台区第三纪念广场",type:"遗址",area:"丰台区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市丰台区丰台北路165号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.2541,lat:39.8997},
+    {id:47,name:"革命丰台区第一教育基地",type:"设施",area:"丰台区",desc:"革命丰台区第一教育基地是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市丰台区西四环南路2号",time:"2003年建成",protectLevel:"全国重点文物保护单位",lng:116.2853,lat:39.8825},
+    {id:48,name:"北京顺义区第三影像档案",type:"档案",area:"顺义区",desc:"北京顺义区第三影像档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市顺义区顺义府前街15号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.6902,lat:40.1724},
+    {id:49,name:"北京海淀区第二烈士墓",type:"遗址",area:"海淀区",desc:"北京海淀区第二烈士墓遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市海淀区颐和园路74号",time:"1943年",protectLevel:"北京市文物保护单位",lng:116.2805,lat:39.965},
+    {id:50,name:"解放东城区第四影像档案",type:"档案",area:"东城区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市东城区东直门内大街20号",time:"1919年",protectLevel:"北京市文物保护单位",lng:116.4225,lat:39.92},
+    {id:51,name:"抗日丰台区第四活动遗址",type:"遗址",area:"丰台区",desc:"抗日丰台区第四活动遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市丰台区南三环西路54号",time:"1948年",protectLevel:"全国重点文物保护单位",lng:116.2954,lat:39.898},
+    {id:52,name:"北京朝阳区第三革命旧址",type:"旧址",area:"朝阳区",desc:"北京朝阳区第三革命旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市朝阳区三里屯路119号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.5214,lat:39.9317},
+    {id:53,name:"红色东城区第一档案馆",type:"设施",area:"东城区",desc:"红色东城区第一档案馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市东城区东直门内大街181号",time:"2010年建成",protectLevel:"区级文物保护单位",lng:116.417,lat:39.9191},
+    {id:54,name:"爱国西城区第一教育基地",type:"设施",area:"西城区",desc:"作为革命历史设施，爱国西城区第一教育基地为公众提供了了解革命历史的窗口。",address:"北京市西城区西单北大街151号",time:"2010年建成",protectLevel:"全国重点文物保护单位",lng:116.3749,lat:39.9203},
+    {id:55,name:"解放海淀区第三博物馆",type:"设施",area:"海淀区",desc:"作为革命历史设施，解放海淀区第三博物馆为公众提供了了解革命历史的窗口。",address:"北京市海淀区颐和园路111号",time:"2015年建成",protectLevel:"全国重点文物保护单位",lng:116.2407,lat:40.0005},
+    {id:56,name:"革命西城区第一工具",type:"实物",area:"西城区",desc:"革命西城区第一工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市西城区新街口外大街32号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.3885,lat:39.9241},
+    {id:57,name:"革命顺义区第三笔记",type:"手稿",area:"顺义区",desc:"革命顺义区第三笔记手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市顺义区顺义府前街192号",time:"1919年",protectLevel:"国家一级文物",lng:116.7157,lat:40.1693},
+    {id:58,name:"北京西城区第一选集",type:"文献",area:"西城区",desc:"北京西城区第一选集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市西城区新街口外大街88号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.3708,lat:39.9212},
+    {id:59,name:"华北西城区第五会议旧址",type:"旧址",area:"西城区",desc:"华北西城区第五会议旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区阜成门内大街36号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.3846,lat:39.9026},
+    {id:60,name:"华北顺义区第一档案馆",type:"设施",area:"顺义区",desc:"华北顺义区第一档案馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市顺义区顺义府前街103号",time:"2015年建成",protectLevel:"珍贵历史档案",lng:116.6721,lat:40.1644},
+    {id:61,name:"解放顺义区第二笔记",type:"手稿",area:"顺义区",desc:"解放顺义区第二笔记手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市顺义区后沙峪路57号",time:"1940年",protectLevel:"珍贵历史档案",lng:116.8194,lat:40.1784},
+    {id:62,name:"革命东城区第五指挥部旧址",type:"旧址",area:"东城区",desc:"革命东城区第五指挥部旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市东城区东四北大街92号",time:"1920年",protectLevel:"北京市文物保护单位",lng:116.4118,lat:39.9251},
+    {id:63,name:"抗日西城区第四烈士墓",type:"遗址",area:"西城区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市西城区西长安街200号",time:"1937年",protectLevel:"国家一级文物",lng:116.3515,lat:39.9153},
+    {id:64,name:"爱国海淀区第二文献档案",type:"档案",area:"海淀区",desc:"爱国海淀区第二文献档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区清华西路10号",time:"1945年",protectLevel:"珍贵历史档案",lng:116.279,lat:39.961},
+    {id:65,name:"革命海淀区第一纪念广场",type:"遗址",area:"海淀区",desc:"革命海淀区第一纪念广场遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市海淀区中关村大街39号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.307,lat:39.9554},
+    {id:66,name:"解放朝阳区第二草稿",type:"手稿",area:"朝阳区",desc:"解放朝阳区第二草稿手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市朝阳区朝外大街153号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.4789,lat:39.9397},
+    {id:67,name:"红色海淀区第一烈士墓",type:"遗址",area:"海淀区",desc:"红色海淀区第一烈士墓遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市海淀区学院路14号",time:"1943年",protectLevel:"国家一级文物",lng:116.263,lat:39.9914},
+    {id:68,name:"抗日丰台区第四联络点旧址",type:"旧址",area:"丰台区",desc:"抗日丰台区第四联络点旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区西四环南路181号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.2865,lat:39.8625},
+    {id:69,name:"北京海淀区第三选集",type:"文献",area:"海淀区",desc:"北京海淀区第三选集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市海淀区颐和园路76号",time:"1920年",protectLevel:"区级文物保护单位",lng:116.2471,lat:40.0034},
+    {id:70,name:"抗日西城区第五影像档案",type:"档案",area:"西城区",desc:"抗日西城区第五影像档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市西城区西单北大街138号",time:"1949年",protectLevel:"珍贵历史档案",lng:116.3773,lat:39.9003},
+    {id:71,name:"解放朝阳区第三日记",type:"手稿",area:"朝阳区",desc:"解放朝阳区第三日记手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市朝阳区朝阳北路167号",time:"1921年",protectLevel:"国家一级文物",lng:116.5318,lat:39.9399},
+    {id:72,name:"革命顺义区第一档案馆",type:"设施",area:"顺义区",desc:"作为革命历史设施，革命顺义区第一档案馆为公众提供了了解革命历史的窗口。",address:"北京市顺义区顺义府前街84号",time:"2015年建成",protectLevel:"区级文物保护单位",lng:116.6814,lat:40.1171},
+    {id:73,name:"解放朝阳区第二历史实物",type:"实物",area:"朝阳区",desc:"解放朝阳区第二历史实物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市朝阳区朝外大街198号",time:"1945年",protectLevel:"国家一级文物",lng:116.5293,lat:39.9333},
+    {id:74,name:"抗日西城区第一日记",type:"手稿",area:"西城区",desc:"抗日西城区第一日记手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市西城区西直门内大街66号",time:"1919年",protectLevel:"北京市文物保护单位",lng:116.3501,lat:39.9152},
+    {id:75,name:"红色顺义区第三历史档案",type:"档案",area:"顺义区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市顺义区裕龙大街176号",time:"1919年",protectLevel:"国家一级文物",lng:116.7507,lat:40.1418},
+    {id:76,name:"抗日顺义区第一书信",type:"手稿",area:"顺义区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市顺义区新国展路112号",time:"1923年",protectLevel:"爱国主义教育基地",lng:116.8442,lat:40.1922},
+    {id:77,name:"革命东城区第一选集",type:"文献",area:"东城区",desc:"革命东城区第一选集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市东城区东四北大街49号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.4001,lat:39.9111},
+    {id:78,name:"红色丰台区第二革命文献",type:"文献",area:"丰台区",desc:"红色丰台区第二革命文献文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市丰台区南三环西路53号",time:"1920年",protectLevel:"区级文物保护单位",lng:116.2253,lat:39.8714},
+    {id:79,name:"华北海淀区第三档案馆",type:"设施",area:"海淀区",desc:"华北海淀区第三档案馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市海淀区学院路55号",time:"2003年建成",protectLevel:"爱国主义教育基地",lng:116.1628,lat:39.981},
+    {id:80,name:"解放顺义区第一工具",type:"实物",area:"顺义区",desc:"解放顺义区第一工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市顺义区后沙峪路87号",time:"1945年",protectLevel:"国家一级文物",lng:116.6723,lat:40.1673},
+    {id:81,name:"抗日丰台区第五会议遗址",type:"遗址",area:"丰台区",desc:"抗日丰台区第五会议遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市丰台区丰台路57号",time:"1937年",protectLevel:"全国重点文物保护单位",lng:116.262,lat:39.8837},
+    {id:82,name:"红色海淀区第五革命文献",type:"文献",area:"海淀区",desc:"红色海淀区第五革命文献是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市海淀区颐和园路195号",time:"1920年",protectLevel:"爱国主义教育基地",lng:116.3373,lat:39.9724},
+    {id:83,name:"红色丰台区第三纪念广场",type:"遗址",area:"丰台区",desc:"红色丰台区第三纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市丰台区丰台路41号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.2473,lat:39.8523},
+    {id:84,name:"红色东城区第五革命档案",type:"档案",area:"东城区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市东城区东四北大街142号",time:"1935年",protectLevel:"全国重点文物保护单位",lng:116.4268,lat:39.9237},
+    {id:85,name:"抗日丰台区第三影像档案",type:"档案",area:"丰台区",desc:"抗日丰台区第三影像档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市丰台区丰台路46号",time:"1935年",protectLevel:"北京市文物保护单位",lng:116.2721,lat:39.8877},
+    {id:86,name:"华北东城区第二教育基地",type:"设施",area:"东城区",desc:"华北东城区第二教育基地是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市东城区安定门内大街169号",time:"1987年建成",protectLevel:"区级文物保护单位",lng:116.4037,lat:39.9384},
+    {id:87,name:"解放东城区第二回忆录",type:"文献",area:"东城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市东城区东四北大街150号",time:"1920年",protectLevel:"全国重点文物保护单位",lng:116.4087,lat:39.9182},
+    {id:88,name:"抗日顺义区第二活动遗址",type:"遗址",area:"顺义区",desc:"抗日顺义区第二活动遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市顺义区裕龙大街136号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.6538,lat:40.1669},
+    {id:89,name:"爱国西城区第二服装",type:"实物",area:"西城区",desc:"爱国西城区第二服装是革命历史的实物见证，具有重要的纪念意义。",address:"北京市西城区西单北大街118号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.3889,lat:39.9214},
+    {id:90,name:"抗日朝阳区第一会议遗址",type:"遗址",area:"朝阳区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市朝阳区朝外大街190号",time:"1948年",protectLevel:"珍贵历史档案",lng:116.498,lat:39.9156},
+    {id:91,name:"革命西城区第四纪念馆",type:"设施",area:"西城区",desc:"革命西城区第四纪念馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市西城区西单北大街21号",time:"2015年建成",protectLevel:"珍贵历史档案",lng:116.3508,lat:39.9105},
+    {id:92,name:"华北东城区第三革命文献",type:"文献",area:"东城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市东城区东四北大街95号",time:"1921年",protectLevel:"北京市文物保护单位",lng:116.4085,lat:39.9243},
+    {id:93,name:"爱国顺义区第一图书馆",type:"设施",area:"顺义区",desc:"爱国顺义区第一图书馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市顺义区天竺路13号",time:"1987年建成",protectLevel:"珍贵历史档案",lng:116.759,lat:40.1493},
+    {id:94,name:"红色西城区第三斗争旧址",type:"旧址",area:"西城区",desc:"红色西城区第三斗争旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市西城区西长安街200号",time:"1930年",protectLevel:"全国重点文物保护单位",lng:116.3754,lat:39.9246},
+    {id:95,name:"抗日朝阳区第二服装",type:"实物",area:"朝阳区",desc:"抗日朝阳区第二服装实物保存完整，是开展革命传统教育的重要素材。",address:"北京市朝阳区朝外大街200号",time:"1949年",protectLevel:"国家一级文物",lng:116.5185,lat:39.905},
+    {id:96,name:"爱国朝阳区第四活动遗址",type:"遗址",area:"朝阳区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市朝阳区朝外大街106号",time:"1949年",protectLevel:"国家一级文物",lng:116.515,lat:39.9169},
+    {id:97,name:"华北海淀区第一文献档案",type:"档案",area:"海淀区",desc:"华北海淀区第一文献档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区清华西路189号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.1854,lat:39.9895},
+    {id:98,name:"华北西城区第二纪念广场",type:"遗址",area:"西城区",desc:"华北西城区第二纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市西城区西直门内大街186号",time:"1945年",protectLevel:"爱国主义教育基地",lng:116.3886,lat:39.9216},
+    {id:99,name:"北京东城区第五学校旧址",type:"旧址",area:"东城区",desc:"北京东城区第五学校旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市东城区王府井大街195号",time:"1940年",protectLevel:"爱国主义教育基地",lng:116.4079,lat:39.9289},
+    {id:100,name:"解放朝阳区第五文集",type:"文献",area:"朝阳区",desc:"解放朝阳区第五文集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市朝阳区朝外大街12号",time:"1938年",protectLevel:"国家一级文物",lng:116.5231,lat:39.9434},
+    {id:101,name:"解放丰台区第三笔记",type:"手稿",area:"丰台区",desc:"解放丰台区第三笔记手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市丰台区卢沟桥路77号",time:"1923年",protectLevel:"爱国主义教育基地",lng:116.2868,lat:39.8524},
+    {id:102,name:"抗日海淀区第一教育基地",type:"设施",area:"海淀区",desc:"作为革命历史设施，抗日海淀区第一教育基地为公众提供了了解革命历史的窗口。",address:"北京市海淀区颐和园路19号",time:"2003年建成",protectLevel:"全国重点文物保护单位",lng:116.2305,lat:39.9914},
+    {id:103,name:"解放西城区第五名人档案",type:"档案",area:"西城区",desc:"解放西城区第五名人档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市西城区阜成门内大街5号",time:"1949年",protectLevel:"爱国主义教育基地",lng:116.3843,lat:39.9156},
+    {id:104,name:"北京朝阳区第五影像档案",type:"档案",area:"朝阳区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市朝阳区三里屯路10号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.5313,lat:39.907},
+    {id:105,name:"爱国西城区第一档案馆",type:"设施",area:"西城区",desc:"爱国西城区第一档案馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市西城区西长安街193号",time:"2010年建成",protectLevel:"区级文物保护单位",lng:116.3722,lat:39.9196},
+    {id:106,name:"北京朝阳区第三手迹",type:"手稿",area:"朝阳区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市朝阳区建国路140号",time:"1921年",protectLevel:"北京市文物保护单位",lng:116.5248,lat:39.9431},
+    {id:107,name:"爱国顺义区第二笔记",type:"手稿",area:"顺义区",desc:"爱国顺义区第二笔记手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市顺义区新国展路65号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.839,lat:40.1959},
+    {id:108,name:"革命丰台区第四选集",type:"文献",area:"丰台区",desc:"革命丰台区第四选集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市丰台区丰台北路164号",time:"1920年",protectLevel:"北京市文物保护单位",lng:116.2759,lat:39.8668},
+    {id:109,name:"北京西城区第四会议旧址",type:"旧址",area:"西城区",desc:"作为革命旧址，北京西城区第四会议旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市西城区新街口外大街59号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.3709,lat:39.9154},
+    {id:110,name:"华北东城区第五实物档案",type:"档案",area:"东城区",desc:"华北东城区第五实物档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市东城区东四北大街144号",time:"1921年",protectLevel:"国家一级文物",lng:116.4167,lat:39.9105},
+    {id:111,name:"爱国东城区第二革命文物",type:"实物",area:"东城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市东城区东长安街43号",time:"1919年",protectLevel:"国家一级文物",lng:116.4004,lat:39.9104},
+    {id:112,name:"解放海淀区第二教育基地",type:"设施",area:"海淀区",desc:"解放海淀区第二教育基地是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区颐和园路121号",time:"2015年建成",protectLevel:"爱国主义教育基地",lng:116.2626,lat:39.9773},
+    {id:113,name:"华北朝阳区第五革命文物",type:"实物",area:"朝阳区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市朝阳区建国路186号",time:"1945年",protectLevel:"爱国主义教育基地",lng:116.4836,lat:39.9016},
+    {id:114,name:"爱国东城区第一图书馆",type:"设施",area:"东城区",desc:"作为革命历史设施，爱国东城区第一图书馆为公众提供了了解革命历史的窗口。",address:"北京市东城区王府井大街41号",time:"2003年建成",protectLevel:"珍贵历史档案",lng:116.415,lat:39.9238},
+    {id:115,name:"革命朝阳区第三理论著作",type:"文献",area:"朝阳区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市朝阳区朝阳北路181号",time:"1921年",protectLevel:"国家一级文物",lng:116.4954,lat:39.9117},
+    {id:116,name:"红色西城区第四工具",type:"实物",area:"西城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市西城区西单北大街163号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.353,lat:39.9251},
+    {id:117,name:"北京顺义区第一手迹",type:"手稿",area:"顺义区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市顺义区天竺路79号",time:"1933年",protectLevel:"北京市文物保护单位",lng:116.6503,lat:40.1462},
+    {id:118,name:"解放朝阳区第五手迹",type:"手稿",area:"朝阳区",desc:"解放朝阳区第五手迹手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市朝阳区三里屯路181号",time:"1945年",protectLevel:"爱国主义教育基地",lng:116.4559,lat:39.9},
+    {id:119,name:"革命顺义区第五战斗遗址",type:"遗址",area:"顺义区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市顺义区顺义府前街132号",time:"1943年",protectLevel:"区级文物保护单位",lng:116.7731,lat:40.1767},
+    {id:120,name:"华北西城区第二武器",type:"实物",area:"西城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市西城区西单北大街66号",time:"1949年",protectLevel:"全国重点文物保护单位",lng:116.3703,lat:39.9163},
+    {id:121,name:"爱国海淀区第二战斗遗址",type:"遗址",area:"海淀区",desc:"爱国海淀区第二战斗遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市海淀区颐和园路150号",time:"1941年",protectLevel:"国家一级文物",lng:116.2194,lat:40.0109},
+    {id:122,name:"北京丰台区第三斗争旧址",type:"旧址",area:"丰台区",desc:"北京丰台区第三斗争旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市丰台区西四环南路107号",time:"1949年",protectLevel:"全国重点文物保护单位",lng:116.208,lat:39.8821},
+    {id:123,name:"解放顺义区第三档案馆",type:"设施",area:"顺义区",desc:"解放顺义区第三档案馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市顺义区后沙峪路91号",time:"1987年建成",protectLevel:"爱国主义教育基地",lng:116.73,lat:40.1783},
+    {id:124,name:"解放丰台区第五会议遗址",type:"遗址",area:"丰台区",desc:"解放丰台区第五会议遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市丰台区卢沟桥路140号",time:"1937年",protectLevel:"国家一级文物",lng:116.2662,lat:39.8619},
+    {id:125,name:"华北东城区第二历史档案",type:"档案",area:"东城区",desc:"华北东城区第二历史档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市东城区东长安街42号",time:"1948年",protectLevel:"珍贵历史档案",lng:116.4188,lat:39.9333},
+    {id:126,name:"爱国朝阳区第一理论著作",type:"文献",area:"朝阳区",desc:"爱国朝阳区第一理论著作文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市朝阳区建国路10号",time:"1920年",protectLevel:"国家一级文物",lng:116.5018,lat:39.9169},
+    {id:127,name:"红色丰台区第五博物馆",type:"设施",area:"丰台区",desc:"作为革命历史设施，红色丰台区第五博物馆为公众提供了了解革命历史的窗口。",address:"北京市丰台区南三环西路13号",time:"2010年建成",protectLevel:"全国重点文物保护单位",lng:116.2255,lat:39.8827},
+    {id:128,name:"抗日朝阳区第一图书馆",type:"设施",area:"朝阳区",desc:"作为革命历史设施，抗日朝阳区第一图书馆为公众提供了了解革命历史的窗口。",address:"北京市朝阳区酒仙桥路191号",time:"1987年建成",protectLevel:"爱国主义教育基地",lng:116.5114,lat:39.9353},
+    {id:129,name:"革命海淀区第五影像档案",type:"档案",area:"海淀区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市海淀区颐和园路195号",time:"1921年",protectLevel:"爱国主义教育基地",lng:116.1712,lat:39.9982},
+    {id:130,name:"红色丰台区第三革命文物",type:"实物",area:"丰台区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市丰台区南三环西路79号",time:"1949年",protectLevel:"国家一级文物",lng:116.2916,lat:39.87},
+    {id:131,name:"红色东城区第五纪念广场",type:"遗址",area:"东城区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市东城区王府井大街99号",time:"1948年",protectLevel:"国家一级文物",lng:116.4256,lat:39.9377},
+    {id:132,name:"抗日海淀区第三纪念广场",type:"遗址",area:"海淀区",desc:"抗日海淀区第三纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市海淀区中关村大街148号",time:"1937年",protectLevel:"北京市文物保护单位",lng:116.2427,lat:39.9986},
+    {id:133,name:"抗日顺义区第一展览馆",type:"设施",area:"顺义区",desc:"抗日顺义区第一展览馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市顺义区裕龙大街23号",time:"2019年建成",protectLevel:"珍贵历史档案",lng:116.662,lat:40.1734},
+    {id:134,name:"抗日西城区第一选集",type:"文献",area:"西城区",desc:"抗日西城区第一选集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市西城区阜成门内大街50号",time:"1935年",protectLevel:"国家一级文物",lng:116.3531,lat:39.9176},
+    {id:135,name:"抗日海淀区第三战斗遗址",type:"遗址",area:"海淀区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市海淀区颐和园路49号",time:"1949年",protectLevel:"珍贵历史档案",lng:116.2081,lat:39.997},
+    {id:136,name:"革命西城区第二展览馆",type:"设施",area:"西城区",desc:"革命西城区第二展览馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市西城区西直门内大街122号",time:"1987年建成",protectLevel:"全国重点文物保护单位",lng:116.3569,lat:39.9065},
+    {id:137,name:"华北西城区第五服装",type:"实物",area:"西城区",desc:"华北西城区第五服装实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区新街口外大街139号",time:"1919年",protectLevel:"国家一级文物",lng:116.3584,lat:39.9138},
+    {id:138,name:"红色海淀区第二革命文献",type:"文献",area:"海淀区",desc:"红色海淀区第二革命文献是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市海淀区学院路4号",time:"1938年",protectLevel:"国家一级文物",lng:116.3376,lat:39.9643},
+    {id:139,name:"抗日朝阳区第三指挥部旧址",type:"旧址",area:"朝阳区",desc:"作为革命旧址，抗日朝阳区第三指挥部旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市朝阳区酒仙桥路184号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.5116,lat:39.9366},
+    {id:140,name:"抗日西城区第三纪念碑",type:"遗址",area:"西城区",desc:"抗日西城区第三纪念碑遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市西城区阜成门内大街21号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.3657,lat:39.9069},
+    {id:141,name:"解放顺义区第一斗争旧址",type:"旧址",area:"顺义区",desc:"解放顺义区第一斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市顺义区新国展路76号",time:"1921年",protectLevel:"全国重点文物保护单位",lng:116.6991,lat:40.1266},
+    {id:142,name:"解放海淀区第二纪念广场",type:"遗址",area:"海淀区",desc:"解放海淀区第二纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市海淀区颐和园路147号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.2049,lat:40.0114},
+    {id:143,name:"抗日东城区第二革命文献",type:"文献",area:"东城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市东城区东长安街186号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.4251,lat:39.9177},
+    {id:144,name:"红色海淀区第三草稿",type:"手稿",area:"海淀区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市海淀区学院路159号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.2766,lat:40.0032},
+    {id:145,name:"爱国西城区第二革命档案",type:"档案",area:"西城区",desc:"爱国西城区第二革命档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市西城区西单北大街3号",time:"1921年",protectLevel:"区级文物保护单位",lng:116.3829,lat:39.9174},
+    {id:146,name:"红色朝阳区第四草稿",type:"手稿",area:"朝阳区",desc:"红色朝阳区第四草稿手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市朝阳区朝阳北路165号",time:"1933年",protectLevel:"珍贵历史档案",lng:116.4778,lat:39.9216},
+    {id:147,name:"解放朝阳区第二回忆录",type:"文献",area:"朝阳区",desc:"解放朝阳区第二回忆录是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市朝阳区酒仙桥路137号",time:"1938年",protectLevel:"区级文物保护单位",lng:116.4607,lat:39.9084},
+    {id:148,name:"解放顺义区第二历史实物",type:"实物",area:"顺义区",desc:"解放顺义区第二历史实物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市顺义区新国展路45号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.6733,lat:40.1469},
+    {id:149,name:"红色朝阳区第二纪念碑",type:"遗址",area:"朝阳区",desc:"红色朝阳区第二纪念碑遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区三里屯路161号",time:"1937年",protectLevel:"北京市文物保护单位",lng:116.4932,lat:39.9073},
+    {id:150,name:"红色顺义区第四革命文物",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区天竺路92号",time:"1937年",protectLevel:"北京市文物保护单位",lng:116.6562,lat:40.1473},
+    {id:151,name:"爱国西城区第四武器",type:"实物",area:"西城区",desc:"爱国西城区第四武器实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区阜成门内大街125号",time:"1937年",protectLevel:"北京市文物保护单位",lng:116.3584,lat:39.9094},
+    {id:152,name:"华北朝阳区第二实物档案",type:"档案",area:"朝阳区",desc:"华北朝阳区第二实物档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市朝阳区朝阳北路135号",time:"1945年",protectLevel:"国家一级文物",lng:116.517,lat:39.921},
+    {id:153,name:"解放西城区第四实物档案",type:"档案",area:"西城区",desc:"解放西城区第四实物档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市西城区新街口外大街64号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.3608,lat:39.9132},
+    {id:154,name:"红色海淀区第二文集",type:"文献",area:"海淀区",desc:"红色海淀区第二文集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市海淀区清华西路45号",time:"1921年",protectLevel:"爱国主义教育基地",lng:116.2195,lat:39.9828},
+    {id:155,name:"爱国朝阳区第一历史档案",type:"档案",area:"朝阳区",desc:"爱国朝阳区第一历史档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市朝阳区三里屯路68号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.5211,lat:39.937},
+    {id:156,name:"解放海淀区第五工具",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区颐和园路28号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.1658,lat:39.9861},
+    {id:157,name:"解放顺义区第四服装",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区裕龙大街43号",time:"1945年",protectLevel:"珍贵历史档案",lng:116.7893,lat:40.1471},
+    {id:158,name:"抗日朝阳区第三影像档案",type:"档案",area:"朝阳区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市朝阳区建国路54号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.4858,lat:39.9237},
+    {id:159,name:"华北东城区第二武器",type:"实物",area:"东城区",desc:"华北东城区第二武器是革命历史的实物见证，具有重要的纪念意义。",address:"北京市东城区东长安街139号",time:"1919年",protectLevel:"北京市文物保护单位",lng:116.4181,lat:39.9199},
+    {id:160,name:"华北西城区第二历史档案",type:"档案",area:"西城区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市西城区西长安街192号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.3634,lat:39.9221},
+    {id:161,name:"抗日顺义区第五会议遗址",type:"遗址",area:"顺义区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市顺义区天竺路136号",time:"1941年",protectLevel:"国家一级文物",lng:116.789,lat:40.176},
+    {id:162,name:"红色西城区第五烈士墓",type:"遗址",area:"西城区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市西城区新街口外大街75号",time:"1943年",protectLevel:"国家一级文物",lng:116.3605,lat:39.9265},
+    {id:163,name:"革命西城区第五武器",type:"实物",area:"西城区",desc:"革命西城区第五武器实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区阜成门内大街53号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.3658,lat:39.9127},
+    {id:164,name:"北京顺义区第四历史文献",type:"文献",area:"顺义区",desc:"北京顺义区第四历史文献是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市顺义区天竺路137号",time:"1920年",protectLevel:"区级文物保护单位",lng:116.7667,lat:40.1266},
+    {id:165,name:"解放东城区第三展览馆",type:"设施",area:"东城区",desc:"作为革命历史设施，解放东城区第三展览馆为公众提供了了解革命历史的窗口。",address:"北京市东城区安定门内大街72号",time:"2015年建成",protectLevel:"珍贵历史档案",lng:116.4246,lat:39.9294},
+    {id:166,name:"解放朝阳区第三工具",type:"实物",area:"朝阳区",desc:"解放朝阳区第三工具实物保存完整，是开展革命传统教育的重要素材。",address:"北京市朝阳区酒仙桥路42号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.491,lat:39.9062},
+    {id:167,name:"北京西城区第一学校旧址",type:"旧址",area:"西城区",desc:"北京西城区第一学校旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区新街口外大街69号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.3606,lat:39.9109},
+    {id:168,name:"北京西城区第三文集",type:"文献",area:"西城区",desc:"北京西城区第三文集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市西城区新街口外大街122号",time:"1935年",protectLevel:"国家一级文物",lng:116.3824,lat:39.9201},
+    {id:169,name:"爱国丰台区第一理论著作",type:"文献",area:"丰台区",desc:"爱国丰台区第一理论著作文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市丰台区丰台北路84号",time:"1920年",protectLevel:"爱国主义教育基地",lng:116.2903,lat:39.896},
+    {id:170,name:"北京朝阳区第四回忆录",type:"文献",area:"朝阳区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市朝阳区建国路36号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.5176,lat:39.9431},
+    {id:171,name:"华北海淀区第一纪念品",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区学院路17号",time:"1941年",protectLevel:"国家一级文物",lng:116.2866,lat:39.9558},
+    {id:172,name:"北京西城区第一武器",type:"实物",area:"西城区",desc:"北京西城区第一武器是革命历史的实物见证，具有重要的纪念意义。",address:"北京市西城区新街口外大街85号",time:"1941年",protectLevel:"国家一级文物",lng:116.3869,lat:39.9243},
+    {id:173,name:"北京丰台区第四会议遗址",type:"遗址",area:"丰台区",desc:"北京丰台区第四会议遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市丰台区丰台路100号",time:"1941年",protectLevel:"珍贵历史档案",lng:116.2182,lat:39.8772},
+    {id:174,name:"红色海淀区第五理论著作",type:"文献",area:"海淀区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市海淀区中关村大街30号",time:"1935年",protectLevel:"北京市文物保护单位",lng:116.1903,lat:39.9583},
+    {id:175,name:"华北顺义区第二纪念广场",type:"遗址",area:"顺义区",desc:"华北顺义区第二纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市顺义区新国展路32号",time:"1949年",protectLevel:"区级文物保护单位",lng:116.8202,lat:40.1007},
+    {id:176,name:"爱国西城区第二文集",type:"文献",area:"西城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市西城区新街口外大街1号",time:"1921年",protectLevel:"全国重点文物保护单位",lng:116.3656,lat:39.9155},
+    {id:177,name:"红色海淀区第二历史实物",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区颐和园路148号",time:"1937年",protectLevel:"爱国主义教育基地",lng:116.2191,lat:39.9584},
+    {id:178,name:"革命顺义区第二理论著作",type:"文献",area:"顺义区",desc:"革命顺义区第二理论著作文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市顺义区裕龙大街12号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.8032,lat:40.197},
+    {id:179,name:"解放丰台区第五斗争旧址",type:"旧址",area:"丰台区",desc:"解放丰台区第五斗争旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市丰台区丰台北路145号",time:"1925年",protectLevel:"珍贵历史档案",lng:116.2833,lat:39.889},
+    {id:180,name:"抗日东城区第三博物馆",type:"设施",area:"东城区",desc:"抗日东城区第三博物馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市东城区东四北大街27号",time:"1987年建成",protectLevel:"爱国主义教育基地",lng:116.4232,lat:39.9369},
+    {id:181,name:"爱国朝阳区第四革命档案",type:"档案",area:"朝阳区",desc:"爱国朝阳区第四革命档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市朝阳区三里屯路5号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.4535,lat:39.9183},
+    {id:182,name:"爱国顺义区第二档案馆",type:"设施",area:"顺义区",desc:"爱国顺义区第二档案馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市顺义区新国展路77号",time:"2019年建成",protectLevel:"国家一级文物",lng:116.7401,lat:40.1939},
+    {id:183,name:"爱国西城区第一纪念馆",type:"设施",area:"西城区",desc:"爱国西城区第一纪念馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市西城区西直门内大街59号",time:"1987年建成",protectLevel:"北京市文物保护单位",lng:116.3871,lat:39.9114},
+    {id:184,name:"解放西城区第四革命文物",type:"实物",area:"西城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市西城区西长安街173号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.3615,lat:39.917},
+    {id:185,name:"爱国丰台区第一斗争旧址",type:"旧址",area:"丰台区",desc:"作为革命旧址，爱国丰台区第一斗争旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市丰台区南三环西路8号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.2174,lat:39.8853},
+    {id:186,name:"革命朝阳区第一会议遗址",type:"遗址",area:"朝阳区",desc:"革命朝阳区第一会议遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区建国路196号",time:"1949年",protectLevel:"珍贵历史档案",lng:116.5257,lat:39.9241},
+    {id:187,name:"抗日丰台区第四手迹",type:"手稿",area:"丰台区",desc:"抗日丰台区第四手迹手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市丰台区西四环南路9号",time:"1933年",protectLevel:"全国重点文物保护单位",lng:116.2136,lat:39.8561},
+    {id:188,name:"华北顺义区第二书信",type:"手稿",area:"顺义区",desc:"华北顺义区第二书信手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市顺义区裕龙大街161号",time:"1923年",protectLevel:"爱国主义教育基地",lng:116.8295,lat:40.1151},
+    {id:189,name:"革命朝阳区第三纪念广场",type:"遗址",area:"朝阳区",desc:"革命朝阳区第三纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区朝外大街148号",time:"1949年",protectLevel:"珍贵历史档案",lng:116.5102,lat:39.9077},
+    {id:190,name:"北京朝阳区第三武器",type:"实物",area:"朝阳区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市朝阳区朝外大街185号",time:"1941年",protectLevel:"珍贵历史档案",lng:116.5214,lat:39.9353},
+    {id:191,name:"红色朝阳区第三博物馆",type:"设施",area:"朝阳区",desc:"作为革命历史设施，红色朝阳区第三博物馆为公众提供了了解革命历史的窗口。",address:"北京市朝阳区三里屯路168号",time:"2010年建成",protectLevel:"区级文物保护单位",lng:116.5227,lat:39.9358},
+    {id:192,name:"革命顺义区第五历史实物",type:"实物",area:"顺义区",desc:"革命顺义区第五历史实物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市顺义区后沙峪路153号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.8163,lat:40.1821},
+    {id:193,name:"红色丰台区第一服装",type:"实物",area:"丰台区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市丰台区卢沟桥路168号",time:"1937年",protectLevel:"珍贵历史档案",lng:116.2506,lat:39.852},
+    {id:194,name:"红色朝阳区第二图书馆",type:"设施",area:"朝阳区",desc:"红色朝阳区第二图书馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市朝阳区朝外大街169号",time:"1987年建成",protectLevel:"北京市文物保护单位",lng:116.4758,lat:39.9487},
+    {id:195,name:"北京顺义区第四活动遗址",type:"遗址",area:"顺义区",desc:"北京顺义区第四活动遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市顺义区天竺路64号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.7317,lat:40.1962},
+    {id:196,name:"华北顺义区第一会议遗址",type:"遗址",area:"顺义区",desc:"华北顺义区第一会议遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市顺义区顺义府前街42号",time:"1937年",protectLevel:"爱国主义教育基地",lng:116.7327,lat:40.1697},
+    {id:197,name:"红色丰台区第一笔记",type:"手稿",area:"丰台区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市丰台区卢沟桥路89号",time:"1940年",protectLevel:"区级文物保护单位",lng:116.2927,lat:39.8977},
+    {id:198,name:"红色丰台区第三回忆录",type:"文献",area:"丰台区",desc:"红色丰台区第三回忆录是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市丰台区南三环西路63号",time:"1920年",protectLevel:"国家一级文物",lng:116.2719,lat:39.8621},
+    {id:199,name:"爱国丰台区第二图书馆",type:"设施",area:"丰台区",desc:"爱国丰台区第二图书馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市丰台区丰台路126号",time:"2015年建成",protectLevel:"国家一级文物",lng:116.2634,lat:39.8928},
+    {id:200,name:"北京海淀区第三工具",type:"实物",area:"海淀区",desc:"北京海淀区第三工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市海淀区中关村大街77号",time:"1937年",protectLevel:"珍贵历史档案",lng:116.2582,lat:39.9995},
+    {id:201,name:"解放海淀区第二书信",type:"手稿",area:"海淀区",desc:"解放海淀区第二书信手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市海淀区中关村大街133号",time:"1921年",protectLevel:"全国重点文物保护单位",lng:116.2175,lat:40.0053},
+    {id:202,name:"华北海淀区第五纪念品",type:"实物",area:"海淀区",desc:"华北海淀区第五纪念品实物保存完整，是开展革命传统教育的重要素材。",address:"北京市海淀区清华西路119号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.3225,lat:40.0051},
+    {id:203,name:"抗日朝阳区第一理论著作",type:"文献",area:"朝阳区",desc:"抗日朝阳区第一理论著作是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市朝阳区朝阳北路149号",time:"1940年",protectLevel:"国家一级文物",lng:116.4587,lat:39.9086},
+    {id:204,name:"华北顺义区第二革命文物",type:"实物",area:"顺义区",desc:"华北顺义区第二革命文物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市顺义区后沙峪路130号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.6553,lat:40.1303},
+    {id:205,name:"革命顺义区第一纪念品",type:"实物",area:"顺义区",desc:"革命顺义区第一纪念品是革命历史的实物见证，具有重要的纪念意义。",address:"北京市顺义区后沙峪路120号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.6746,lat:40.1284},
+    {id:206,name:"抗日西城区第五文集",type:"文献",area:"西城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市西城区新街口外大街124号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.3577,lat:39.9189},
+    {id:207,name:"北京顺义区第三教育基地",type:"设施",area:"顺义区",desc:"北京顺义区第三教育基地是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市顺义区天竺路143号",time:"2015年建成",protectLevel:"爱国主义教育基地",lng:116.6839,lat:40.1592},
+    {id:208,name:"革命海淀区第一战斗遗址",type:"遗址",area:"海淀区",desc:"革命海淀区第一战斗遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市海淀区颐和园路173号",time:"1941年",protectLevel:"全国重点文物保护单位",lng:116.262,lat:40.0102},
+    {id:209,name:"解放顺义区第五名人档案",type:"档案",area:"顺义区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市顺义区天竺路179号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.8038,lat:40.107},
+    {id:210,name:"爱国顺义区第三指挥部旧址",type:"旧址",area:"顺义区",desc:"作为革命旧址，爱国顺义区第三指挥部旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市顺义区天竺路184号",time:"1927年",protectLevel:"全国重点文物保护单位",lng:116.7046,lat:40.1785},
+    {id:211,name:"华北顺义区第四手迹",type:"手稿",area:"顺义区",desc:"华北顺义区第四手迹手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市顺义区裕龙大街142号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.6917,lat:40.1094},
+    {id:212,name:"爱国朝阳区第二工具",type:"实物",area:"朝阳区",desc:"爱国朝阳区第二工具实物保存完整，是开展革命传统教育的重要素材。",address:"北京市朝阳区建国路99号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.4855,lat:39.9212},
+    {id:213,name:"华北东城区第四文集",type:"文献",area:"东城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市东城区王府井大街71号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.4021,lat:39.9363},
+    {id:214,name:"北京丰台区第三纪念碑",type:"遗址",area:"丰台区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市丰台区南三环西路15号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.2773,lat:39.878},
+    {id:215,name:"抗日西城区第四历史文献",type:"文献",area:"西城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市西城区西单北大街43号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.388,lat:39.9247},
+    {id:216,name:"解放西城区第二烈士墓",type:"遗址",area:"西城区",desc:"解放西城区第二烈士墓遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市西城区新街口外大街145号",time:"1945年",protectLevel:"爱国主义教育基地",lng:116.3881,lat:39.9151},
+    {id:217,name:"爱国海淀区第五历史实物",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区颐和园路20号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.2552,lat:39.9641},
+    {id:218,name:"华北西城区第五教育基地",type:"设施",area:"西城区",desc:"作为革命历史设施，华北西城区第五教育基地为公众提供了了解革命历史的窗口。",address:"北京市西城区西单北大街2号",time:"1987年建成",protectLevel:"爱国主义教育基地",lng:116.3648,lat:39.9204},
+    {id:219,name:"华北东城区第三选集",type:"文献",area:"东城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市东城区安定门内大街144号",time:"1921年",protectLevel:"国家一级文物",lng:116.4118,lat:39.9104},
+    {id:220,name:"红色顺义区第二工具",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区顺义府前街5号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.6977,lat:40.1402},
+    {id:221,name:"华北海淀区第一联络点旧址",type:"旧址",area:"海淀区",desc:"作为革命旧址，华北海淀区第一联络点旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市海淀区学院路110号",time:"1949年",protectLevel:"爱国主义教育基地",lng:116.1881,lat:39.9816},
+    {id:222,name:"革命顺义区第一斗争旧址",type:"旧址",area:"顺义区",desc:"革命顺义区第一斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市顺义区裕龙大街10号",time:"1925年",protectLevel:"国家一级文物",lng:116.7292,lat:40.1886},
+    {id:223,name:"红色丰台区第四影像档案",type:"档案",area:"丰台区",desc:"红色丰台区第四影像档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市丰台区丰台路37号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.2019,lat:39.8614},
+    {id:224,name:"华北东城区第四纪念碑",type:"遗址",area:"东城区",desc:"华北东城区第四纪念碑遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市东城区安定门内大街104号",time:"1941年",protectLevel:"爱国主义教育基地",lng:116.411,lat:39.9334},
+    {id:225,name:"解放顺义区第二工具",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区后沙峪路155号",time:"1937年",protectLevel:"全国重点文物保护单位",lng:116.8174,lat:40.1464},
+    {id:226,name:"抗日西城区第二会议遗址",type:"遗址",area:"西城区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市西城区阜成门内大街72号",time:"1937年",protectLevel:"爱国主义教育基地",lng:116.3758,lat:39.9233},
+    {id:227,name:"爱国海淀区第二影像档案",type:"档案",area:"海淀区",desc:"爱国海淀区第二影像档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区学院路99号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.1786,lat:40.0153},
+    {id:228,name:"北京海淀区第三工具",type:"实物",area:"海淀区",desc:"北京海淀区第三工具实物保存完整，是开展革命传统教育的重要素材。",address:"北京市海淀区颐和园路137号",time:"1941年",protectLevel:"爱国主义教育基地",lng:116.2139,lat:39.9957},
+    {id:229,name:"红色海淀区第四实物档案",type:"档案",area:"海淀区",desc:"红色海淀区第四实物档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区中关村大街130号",time:"1935年",protectLevel:"北京市文物保护单位",lng:116.3467,lat:40.0062},
+    {id:230,name:"革命西城区第三草稿",type:"手稿",area:"西城区",desc:"革命西城区第三草稿手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市西城区新街口外大街73号",time:"1945年",protectLevel:"国家一级文物",lng:116.37,lat:39.9106},
+    {id:231,name:"革命丰台区第四笔记",type:"手稿",area:"丰台区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市丰台区丰台北路65号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.2023,lat:39.8503},
+    {id:232,name:"革命海淀区第三斗争旧址",type:"旧址",area:"海淀区",desc:"革命海淀区第三斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市海淀区中关村大街4号",time:"1925年",protectLevel:"区级文物保护单位",lng:116.3036,lat:39.9762},
+    {id:233,name:"红色朝阳区第一影像档案",type:"档案",area:"朝阳区",desc:"红色朝阳区第一影像档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市朝阳区酒仙桥路172号",time:"1948年",protectLevel:"珍贵历史档案",lng:116.5479,lat:39.9035},
+    {id:234,name:"爱国朝阳区第二纪念馆",type:"设施",area:"朝阳区",desc:"爱国朝阳区第二纪念馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市朝阳区建国路44号",time:"2003年建成",protectLevel:"区级文物保护单位",lng:116.5253,lat:39.9007},
+    {id:235,name:"抗日西城区第四斗争旧址",type:"旧址",area:"西城区",desc:"抗日西城区第四斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区西长安街12号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.3657,lat:39.9112},
+    {id:236,name:"爱国顺义区第四手稿",type:"手稿",area:"顺义区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市顺义区顺义府前街38号",time:"1923年",protectLevel:"珍贵历史档案",lng:116.661,lat:40.1617},
+    {id:237,name:"爱国西城区第五战斗遗址",type:"遗址",area:"西城区",desc:"爱国西城区第五战斗遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市西城区西单北大街131号",time:"1943年",protectLevel:"珍贵历史档案",lng:116.3592,lat:39.9265},
+    {id:238,name:"革命丰台区第一历史文献",type:"文献",area:"丰台区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市丰台区丰台北路139号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.269,lat:39.8589},
+    {id:239,name:"华北顺义区第四活动遗址",type:"遗址",area:"顺义区",desc:"华北顺义区第四活动遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市顺义区顺义府前街108号",time:"1943年",protectLevel:"珍贵历史档案",lng:116.7858,lat:40.1051},
+    {id:240,name:"解放东城区第二回忆录",type:"文献",area:"东城区",desc:"解放东城区第二回忆录是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市东城区东长安街29号",time:"1935年",protectLevel:"北京市文物保护单位",lng:116.4285,lat:39.9374},
+    {id:241,name:"华北东城区第一烈士墓",type:"遗址",area:"东城区",desc:"华北东城区第一烈士墓遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市东城区王府井大街97号",time:"1945年",protectLevel:"爱国主义教育基地",lng:116.4272,lat:39.9177},
+    {id:242,name:"解放丰台区第三理论著作",type:"文献",area:"丰台区",desc:"解放丰台区第三理论著作文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市丰台区南三环西路20号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.2592,lat:39.8727},
+    {id:243,name:"华北丰台区第二笔记",type:"手稿",area:"丰台区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市丰台区卢沟桥路154号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.2402,lat:39.8904},
+    {id:244,name:"爱国顺义区第三工具",type:"实物",area:"顺义区",desc:"爱国顺义区第三工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市顺义区顺义府前街135号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.7909,lat:40.1028},
+    {id:245,name:"抗日丰台区第四指挥部旧址",type:"旧址",area:"丰台区",desc:"抗日丰台区第四指挥部旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区卢沟桥路115号",time:"1949年",protectLevel:"珍贵历史档案",lng:116.2179,lat:39.8901},
+    {id:246,name:"革命西城区第四斗争旧址",type:"旧址",area:"西城区",desc:"革命西城区第四斗争旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市西城区西单北大街119号",time:"1940年",protectLevel:"国家一级文物",lng:116.356,lat:39.9213},
+    {id:247,name:"解放西城区第三活动遗址",type:"遗址",area:"西城区",desc:"解放西城区第三活动遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市西城区西单北大街95号",time:"1941年",protectLevel:"珍贵历史档案",lng:116.3596,lat:39.9193},
+    {id:248,name:"华北西城区第四指挥部旧址",type:"旧址",area:"西城区",desc:"华北西城区第四指挥部旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区西单北大街146号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.3597,lat:39.9114},
+    {id:249,name:"爱国顺义区第五指挥部旧址",type:"旧址",area:"顺义区",desc:"作为革命旧址，爱国顺义区第五指挥部旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市顺义区天竺路115号",time:"1948年",protectLevel:"珍贵历史档案",lng:116.7139,lat:40.1812},
+    {id:250,name:"北京丰台区第二斗争旧址",type:"旧址",area:"丰台区",desc:"北京丰台区第二斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区西四环南路33号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.2564,lat:39.8802},
+    {id:251,name:"抗日丰台区第四工具",type:"实物",area:"丰台区",desc:"抗日丰台区第四工具实物保存完整，是开展革命传统教育的重要素材。",address:"北京市丰台区西四环南路163号",time:"1919年",protectLevel:"国家一级文物",lng:116.258,lat:39.8535},
+    {id:252,name:"革命西城区第五笔记",type:"手稿",area:"西城区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市西城区新街口外大街71号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.369,lat:39.909},
+    {id:253,name:"爱国西城区第一书信",type:"手稿",area:"西城区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市西城区西单北大街129号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.3836,lat:39.9198},
+    {id:254,name:"解放海淀区第四手迹",type:"手稿",area:"海淀区",desc:"解放海淀区第四手迹手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市海淀区中关村大街26号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.2658,lat:39.9653},
+    {id:255,name:"解放朝阳区第一选集",type:"文献",area:"朝阳区",desc:"解放朝阳区第一选集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市朝阳区酒仙桥路104号",time:"1940年",protectLevel:"国家一级文物",lng:116.4502,lat:39.9195},
+    {id:256,name:"解放朝阳区第三活动遗址",type:"遗址",area:"朝阳区",desc:"解放朝阳区第三活动遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区酒仙桥路11号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.5497,lat:39.9221},
+    {id:257,name:"红色朝阳区第二革命文物",type:"实物",area:"朝阳区",desc:"红色朝阳区第二革命文物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市朝阳区朝外大街177号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.4812,lat:39.9067},
+    {id:258,name:"红色海淀区第一烈士墓",type:"遗址",area:"海淀区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市海淀区颐和园路166号",time:"1948年",protectLevel:"国家一级文物",lng:116.1964,lat:40.0088},
+    {id:259,name:"革命东城区第一回忆录",type:"文献",area:"东城区",desc:"革命东城区第一回忆录文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市东城区东四北大街131号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.4278,lat:39.9139},
+    {id:260,name:"抗日丰台区第一纪念碑",type:"遗址",area:"丰台区",desc:"抗日丰台区第一纪念碑遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市丰台区丰台路189号",time:"1949年",protectLevel:"全国重点文物保护单位",lng:116.2552,lat:39.8867},
+    {id:261,name:"爱国东城区第三纪念馆",type:"设施",area:"东城区",desc:"爱国东城区第三纪念馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市东城区王府井大街26号",time:"2019年建成",protectLevel:"国家一级文物",lng:116.4031,lat:39.918},
+    {id:262,name:"解放西城区第三纪念馆",type:"设施",area:"西城区",desc:"作为革命历史设施，解放西城区第三纪念馆为公众提供了了解革命历史的窗口。",address:"北京市西城区新街口外大街24号",time:"2019年建成",protectLevel:"国家一级文物",lng:116.3639,lat:39.9003},
+    {id:263,name:"红色海淀区第三纪念馆",type:"设施",area:"海淀区",desc:"红色海淀区第三纪念馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区颐和园路7号",time:"2019年建成",protectLevel:"区级文物保护单位",lng:116.1638,lat:39.9933},
+    {id:264,name:"华北海淀区第四服装",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区学院路74号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.249,lat:39.9761},
+    {id:265,name:"北京西城区第五学校旧址",type:"旧址",area:"西城区",desc:"北京西城区第五学校旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市西城区新街口外大街71号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.3542,lat:39.9088},
+    {id:266,name:"解放海淀区第一文献档案",type:"档案",area:"海淀区",desc:"解放海淀区第一文献档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区中关村大街29号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.3421,lat:40.0189},
+    {id:267,name:"华北丰台区第五联络点旧址",type:"旧址",area:"丰台区",desc:"华北丰台区第五联络点旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市丰台区南三环西路64号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.2032,lat:39.8531},
+    {id:268,name:"革命东城区第二教育基地",type:"设施",area:"东城区",desc:"革命东城区第二教育基地设施齐全，是开展爱国主义教育的重要基地。",address:"北京市东城区东长安街57号",time:"2010年建成",protectLevel:"国家一级文物",lng:116.4135,lat:39.9104},
+    {id:269,name:"爱国朝阳区第二选集",type:"文献",area:"朝阳区",desc:"爱国朝阳区第二选集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市朝阳区朝外大街44号",time:"1920年",protectLevel:"全国重点文物保护单位",lng:116.5179,lat:39.9035},
+    {id:270,name:"华北海淀区第四纪念广场",type:"遗址",area:"海淀区",desc:"华北海淀区第四纪念广场遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市海淀区颐和园路16号",time:"1941年",protectLevel:"珍贵历史档案",lng:116.185,lat:40.0057},
+    {id:271,name:"革命丰台区第一纪念广场",type:"遗址",area:"丰台区",desc:"革命丰台区第一纪念广场遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市丰台区丰台路100号",time:"1943年",protectLevel:"全国重点文物保护单位",lng:116.2431,lat:39.8998},
+    {id:272,name:"抗日西城区第五会议遗址",type:"遗址",area:"西城区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市西城区新街口外大街171号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.3868,lat:39.9097},
+    {id:273,name:"革命东城区第二会议遗址",type:"遗址",area:"东城区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市东城区安定门内大街46号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.4002,lat:39.9222},
+    {id:274,name:"革命丰台区第二学校旧址",type:"旧址",area:"丰台区",desc:"革命丰台区第二学校旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区丰台北路82号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.273,lat:39.8791},
+    {id:275,name:"北京顺义区第五教育基地",type:"设施",area:"顺义区",desc:"北京顺义区第五教育基地设施齐全，是开展爱国主义教育的重要基地。",address:"北京市顺义区顺义府前街141号",time:"2003年建成",protectLevel:"全国重点文物保护单位",lng:116.6667,lat:40.1279},
+    {id:276,name:"华北西城区第二名人档案",type:"档案",area:"西城区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市西城区新街口外大街127号",time:"1921年",protectLevel:"北京市文物保护单位",lng:116.388,lat:39.9125},
+    {id:277,name:"红色顺义区第三服装",type:"实物",area:"顺义区",desc:"红色顺义区第三服装是革命历史的实物见证，具有重要的纪念意义。",address:"北京市顺义区顺义府前街6号",time:"1941年",protectLevel:"珍贵历史档案",lng:116.7403,lat:40.1672},
+    {id:278,name:"红色朝阳区第三纪念馆",type:"设施",area:"朝阳区",desc:"红色朝阳区第三纪念馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市朝阳区朝阳北路120号",time:"1987年建成",protectLevel:"国家一级文物",lng:116.4848,lat:39.9387},
+    {id:279,name:"华北顺义区第五战斗遗址",type:"遗址",area:"顺义区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市顺义区新国展路39号",time:"1948年",protectLevel:"国家一级文物",lng:116.6679,lat:40.1301},
+    {id:280,name:"爱国东城区第一展览馆",type:"设施",area:"东城区",desc:"爱国东城区第一展览馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市东城区安定门内大街12号",time:"1987年建成",protectLevel:"全国重点文物保护单位",lng:116.4079,lat:39.9308},
+    {id:281,name:"爱国顺义区第二纪念广场",type:"遗址",area:"顺义区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市顺义区顺义府前街142号",time:"1937年",protectLevel:"珍贵历史档案",lng:116.8469,lat:40.1959},
+    {id:282,name:"爱国朝阳区第一教育基地",type:"设施",area:"朝阳区",desc:"作为革命历史设施，爱国朝阳区第一教育基地为公众提供了了解革命历史的窗口。",address:"北京市朝阳区三里屯路113号",time:"2019年建成",protectLevel:"北京市文物保护单位",lng:116.5493,lat:39.9428},
+    {id:283,name:"解放朝阳区第五展览馆",type:"设施",area:"朝阳区",desc:"作为革命历史设施，解放朝阳区第五展览馆为公众提供了了解革命历史的窗口。",address:"北京市朝阳区酒仙桥路97号",time:"2019年建成",protectLevel:"爱国主义教育基地",lng:116.4666,lat:39.9039},
+    {id:284,name:"抗日海淀区第五文献档案",type:"档案",area:"海淀区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市海淀区颐和园路52号",time:"1921年",protectLevel:"区级文物保护单位",lng:116.2561,lat:39.9749},
+    {id:285,name:"解放丰台区第三展览馆",type:"设施",area:"丰台区",desc:"作为革命历史设施，解放丰台区第三展览馆为公众提供了了解革命历史的窗口。",address:"北京市丰台区丰台北路24号",time:"2010年建成",protectLevel:"全国重点文物保护单位",lng:116.2058,lat:39.8502},
+    {id:286,name:"解放西城区第五书信",type:"手稿",area:"西城区",desc:"解放西城区第五书信手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市西城区西单北大街48号",time:"1933年",protectLevel:"爱国主义教育基地",lng:116.3573,lat:39.9187},
+    {id:287,name:"红色朝阳区第三联络点旧址",type:"旧址",area:"朝阳区",desc:"作为革命旧址，红色朝阳区第三联络点旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市朝阳区酒仙桥路156号",time:"1927年",protectLevel:"区级文物保护单位",lng:116.4971,lat:39.9088},
+    {id:288,name:"革命朝阳区第二指挥部旧址",type:"旧址",area:"朝阳区",desc:"革命朝阳区第二指挥部旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市朝阳区建国路170号",time:"1920年",protectLevel:"国家一级文物",lng:116.5415,lat:39.9011},
+    {id:289,name:"抗日朝阳区第一历史实物",type:"实物",area:"朝阳区",desc:"抗日朝阳区第一历史实物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市朝阳区酒仙桥路107号",time:"1941年",protectLevel:"国家一级文物",lng:116.4593,lat:39.9471},
+    {id:290,name:"革命海淀区第五图书馆",type:"设施",area:"海淀区",desc:"革命海淀区第五图书馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区颐和园路51号",time:"2010年建成",protectLevel:"珍贵历史档案",lng:116.2194,lat:40.0105},
+    {id:291,name:"爱国丰台区第五革命文物",type:"实物",area:"丰台区",desc:"爱国丰台区第五革命文物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市丰台区西四环南路57号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.2197,lat:39.8655},
+    {id:292,name:"华北顺义区第二联络点旧址",type:"旧址",area:"顺义区",desc:"华北顺义区第二联络点旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市顺义区新国展路167号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.8259,lat:40.1636},
+    {id:293,name:"爱国朝阳区第五革命文献",type:"文献",area:"朝阳区",desc:"爱国朝阳区第五革命文献文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市朝阳区酒仙桥路49号",time:"1940年",protectLevel:"全国重点文物保护单位",lng:116.4956,lat:39.9307},
+    {id:294,name:"抗日海淀区第二手迹",type:"手稿",area:"海淀区",desc:"抗日海淀区第二手迹手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市海淀区学院路120号",time:"1933年",protectLevel:"区级文物保护单位",lng:116.1906,lat:39.9884},
+    {id:295,name:"解放丰台区第四文献档案",type:"档案",area:"丰台区",desc:"解放丰台区第四文献档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市丰台区丰台路167号",time:"1949年",protectLevel:"全国重点文物保护单位",lng:116.2302,lat:39.8768},
+    {id:296,name:"红色朝阳区第五手迹",type:"手稿",area:"朝阳区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市朝阳区朝阳北路14号",time:"1921年",protectLevel:"北京市文物保护单位",lng:116.4972,lat:39.92},
+    {id:297,name:"抗日朝阳区第三会议遗址",type:"遗址",area:"朝阳区",desc:"抗日朝阳区第三会议遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市朝阳区朝外大街142号",time:"1949年",protectLevel:"国家一级文物",lng:116.5263,lat:39.9434},
+    {id:298,name:"华北丰台区第二文集",type:"文献",area:"丰台区",desc:"华北丰台区第二文集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市丰台区卢沟桥路27号",time:"1940年",protectLevel:"爱国主义教育基地",lng:116.2665,lat:39.8577},
+    {id:299,name:"抗日朝阳区第三选集",type:"文献",area:"朝阳区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市朝阳区酒仙桥路153号",time:"1920年",protectLevel:"爱国主义教育基地",lng:116.5417,lat:39.9151},
+    {id:300,name:"爱国西城区第一指挥部旧址",type:"旧址",area:"西城区",desc:"爱国西城区第一指挥部旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区西直门内大街182号",time:"1925年",protectLevel:"全国重点文物保护单位",lng:116.3847,lat:39.9156},
+    {id:301,name:"解放朝阳区第一战斗遗址",type:"遗址",area:"朝阳区",desc:"解放朝阳区第一战斗遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区朝外大街79号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.5393,lat:39.935},
+    {id:302,name:"爱国丰台区第二档案馆",type:"设施",area:"丰台区",desc:"作为革命历史设施，爱国丰台区第二档案馆为公众提供了了解革命历史的窗口。",address:"北京市丰台区南三环西路112号",time:"2003年建成",protectLevel:"区级文物保护单位",lng:116.2359,lat:39.8818},
+    {id:303,name:"解放丰台区第四斗争旧址",type:"旧址",area:"丰台区",desc:"解放丰台区第四斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区南三环西路16号",time:"1921年",protectLevel:"全国重点文物保护单位",lng:116.255,lat:39.8703},
+    {id:304,name:"解放朝阳区第四文集",type:"文献",area:"朝阳区",desc:"解放朝阳区第四文集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市朝阳区酒仙桥路190号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.5383,lat:39.917},
+    {id:305,name:"华北朝阳区第四纪念碑",type:"遗址",area:"朝阳区",desc:"华北朝阳区第四纪念碑遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市朝阳区酒仙桥路99号",time:"1937年",protectLevel:"全国重点文物保护单位",lng:116.5027,lat:39.9294},
+    {id:306,name:"解放丰台区第一革命旧址",type:"旧址",area:"丰台区",desc:"作为革命旧址，解放丰台区第一革命旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市丰台区卢沟桥路135号",time:"1949年",protectLevel:"国家一级文物",lng:116.2789,lat:39.8647},
+    {id:307,name:"解放东城区第二革命旧址",type:"旧址",area:"东城区",desc:"解放东城区第二革命旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市东城区王府井大街106号",time:"1920年",protectLevel:"全国重点文物保护单位",lng:116.409,lat:39.9155},
+    {id:308,name:"红色丰台区第一纪念广场",type:"遗址",area:"丰台区",desc:"红色丰台区第一纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市丰台区卢沟桥路174号",time:"1948年",protectLevel:"全国重点文物保护单位",lng:116.2689,lat:39.8842},
+    {id:309,name:"北京丰台区第四纪念馆",type:"设施",area:"丰台区",desc:"北京丰台区第四纪念馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市丰台区卢沟桥路86号",time:"2015年建成",protectLevel:"国家一级文物",lng:116.2834,lat:39.8539},
+    {id:310,name:"爱国朝阳区第五影像档案",type:"档案",area:"朝阳区",desc:"爱国朝阳区第五影像档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市朝阳区三里屯路33号",time:"1921年",protectLevel:"区级文物保护单位",lng:116.4678,lat:39.9279},
+    {id:311,name:"红色朝阳区第二手迹",type:"手稿",area:"朝阳区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市朝阳区三里屯路160号",time:"1933年",protectLevel:"全国重点文物保护单位",lng:116.4987,lat:39.9448},
+    {id:312,name:"革命海淀区第三工具",type:"实物",area:"海淀区",desc:"革命海淀区第三工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市海淀区中关村大街26号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.2078,lat:40.0054},
+    {id:313,name:"北京东城区第一活动遗址",type:"遗址",area:"东城区",desc:"北京东城区第一活动遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市东城区东直门内大街134号",time:"1941年",protectLevel:"全国重点文物保护单位",lng:116.4097,lat:39.9199},
+    {id:314,name:"解放海淀区第五纪念馆",type:"设施",area:"海淀区",desc:"解放海淀区第五纪念馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区清华西路171号",time:"2015年建成",protectLevel:"北京市文物保护单位",lng:116.2286,lat:39.989},
+    {id:315,name:"华北顺义区第二纪念碑",type:"遗址",area:"顺义区",desc:"华北顺义区第二纪念碑遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市顺义区顺义府前街166号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.7571,lat:40.1501},
+    {id:316,name:"爱国海淀区第三武器",type:"实物",area:"海淀区",desc:"爱国海淀区第三武器实物保存完整，是开展革命传统教育的重要素材。",address:"北京市海淀区清华西路189号",time:"1919年",protectLevel:"国家一级文物",lng:116.2405,lat:39.9898},
+    {id:317,name:"解放西城区第一纪念馆",type:"设施",area:"西城区",desc:"解放西城区第一纪念馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市西城区西长安街128号",time:"2019年建成",protectLevel:"珍贵历史档案",lng:116.3593,lat:39.9048},
+    {id:318,name:"华北西城区第三纪念品",type:"实物",area:"西城区",desc:"华北西城区第三纪念品实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区西单北大街11号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.3593,lat:39.9162},
+    {id:319,name:"华北丰台区第一革命档案",type:"档案",area:"丰台区",desc:"华北丰台区第一革命档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市丰台区丰台路154号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.2899,lat:39.8835},
+    {id:320,name:"革命东城区第二理论著作",type:"文献",area:"东城区",desc:"革命东城区第二理论著作是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市东城区安定门内大街170号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.4296,lat:39.9238},
+    {id:321,name:"革命朝阳区第三战斗遗址",type:"遗址",area:"朝阳区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市朝阳区三里屯路94号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.462,lat:39.9354},
+    {id:322,name:"红色西城区第五教育基地",type:"设施",area:"西城区",desc:"红色西城区第五教育基地是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市西城区西长安街180号",time:"2003年建成",protectLevel:"珍贵历史档案",lng:116.3622,lat:39.9096},
+    {id:323,name:"北京海淀区第四名人档案",type:"档案",area:"海淀区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市海淀区学院路192号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.3483,lat:39.9527},
+    {id:324,name:"抗日西城区第一服装",type:"实物",area:"西城区",desc:"抗日西城区第一服装实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区阜成门内大街83号",time:"1949年",protectLevel:"国家一级文物",lng:116.3556,lat:39.9036},
+    {id:325,name:"抗日西城区第二武器",type:"实物",area:"西城区",desc:"抗日西城区第二武器是革命历史的实物见证，具有重要的纪念意义。",address:"北京市西城区新街口外大街80号",time:"1941年",protectLevel:"珍贵历史档案",lng:116.3664,lat:39.9299},
+    {id:326,name:"解放西城区第五指挥部旧址",type:"旧址",area:"西城区",desc:"解放西城区第五指挥部旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区新街口外大街58号",time:"1948年",protectLevel:"区级文物保护单位",lng:116.3504,lat:39.9154},
+    {id:327,name:"北京海淀区第一展览馆",type:"设施",area:"海淀区",desc:"北京海淀区第一展览馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区中关村大街17号",time:"2019年建成",protectLevel:"区级文物保护单位",lng:116.2074,lat:40.014},
+    {id:328,name:"华北朝阳区第一武器",type:"实物",area:"朝阳区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市朝阳区朝阳北路27号",time:"1941年",protectLevel:"全国重点文物保护单位",lng:116.512,lat:39.9092},
+    {id:329,name:"华北丰台区第三日记",type:"手稿",area:"丰台区",desc:"华北丰台区第三日记手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市丰台区卢沟桥路113号",time:"1921年",protectLevel:"全国重点文物保护单位",lng:116.2808,lat:39.8843},
+    {id:330,name:"华北东城区第一历史实物",type:"实物",area:"东城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市东城区安定门内大街115号",time:"1937年",protectLevel:"全国重点文物保护单位",lng:116.4118,lat:39.9175},
+    {id:331,name:"抗日东城区第四手稿",type:"手稿",area:"东城区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市东城区王府井大街66号",time:"1921年",protectLevel:"爱国主义教育基地",lng:116.4171,lat:39.9151},
+    {id:332,name:"红色顺义区第二理论著作",type:"文献",area:"顺义区",desc:"红色顺义区第二理论著作是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市顺义区顺义府前街26号",time:"1940年",protectLevel:"全国重点文物保护单位",lng:116.7485,lat:40.1653},
+    {id:333,name:"革命朝阳区第五实物档案",type:"档案",area:"朝阳区",desc:"革命朝阳区第五实物档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市朝阳区酒仙桥路102号",time:"1945年",protectLevel:"国家一级文物",lng:116.4593,lat:39.9037},
+    {id:334,name:"解放东城区第三会议旧址",type:"旧址",area:"东城区",desc:"解放东城区第三会议旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市东城区王府井大街56号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.4182,lat:39.9153},
+    {id:335,name:"抗日西城区第五烈士墓",type:"遗址",area:"西城区",desc:"抗日西城区第五烈士墓遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市西城区西单北大街187号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.3745,lat:39.9019},
+    {id:336,name:"革命西城区第五历史实物",type:"实物",area:"西城区",desc:"革命西城区第五历史实物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区西直门内大街199号",time:"1919年",protectLevel:"国家一级文物",lng:116.3748,lat:39.9012},
+    {id:337,name:"华北朝阳区第五纪念馆",type:"设施",area:"朝阳区",desc:"华北朝阳区第五纪念馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市朝阳区三里屯路191号",time:"1987年建成",protectLevel:"爱国主义教育基地",lng:116.5131,lat:39.9232},
+    {id:338,name:"北京西城区第四纪念碑",type:"遗址",area:"西城区",desc:"北京西城区第四纪念碑遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市西城区阜成门内大街36号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.3706,lat:39.9103},
+    {id:339,name:"抗日海淀区第五笔记",type:"手稿",area:"海淀区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市海淀区学院路112号",time:"1923年",protectLevel:"全国重点文物保护单位",lng:116.2701,lat:40.0151},
+    {id:340,name:"红色朝阳区第四博物馆",type:"设施",area:"朝阳区",desc:"红色朝阳区第四博物馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市朝阳区建国路172号",time:"2003年建成",protectLevel:"珍贵历史档案",lng:116.4779,lat:39.9462},
+    {id:341,name:"红色西城区第二武器",type:"实物",area:"西城区",desc:"红色西城区第二武器是革命历史的实物见证，具有重要的纪念意义。",address:"北京市西城区阜成门内大街93号",time:"1937年",protectLevel:"国家一级文物",lng:116.3682,lat:39.9043},
+    {id:342,name:"抗日东城区第二博物馆",type:"设施",area:"东城区",desc:"抗日东城区第二博物馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市东城区东直门内大街41号",time:"2015年建成",protectLevel:"珍贵历史档案",lng:116.4239,lat:39.9169},
+    {id:343,name:"解放朝阳区第四历史实物",type:"实物",area:"朝阳区",desc:"解放朝阳区第四历史实物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市朝阳区酒仙桥路176号",time:"1937年",protectLevel:"珍贵历史档案",lng:116.5426,lat:39.9131},
+    {id:344,name:"红色丰台区第三理论著作",type:"文献",area:"丰台区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市丰台区卢沟桥路62号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.2147,lat:39.8656},
+    {id:345,name:"革命东城区第五实物档案",type:"档案",area:"东城区",desc:"革命东城区第五实物档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市东城区王府井大街126号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.4211,lat:39.9305},
+    {id:346,name:"华北顺义区第二纪念碑",type:"遗址",area:"顺义区",desc:"华北顺义区第二纪念碑遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市顺义区天竺路66号",time:"1937年",protectLevel:"全国重点文物保护单位",lng:116.7855,lat:40.1507},
+    {id:347,name:"红色丰台区第二革命旧址",type:"旧址",area:"丰台区",desc:"红色丰台区第二革命旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区南三环西路135号",time:"1940年",protectLevel:"爱国主义教育基地",lng:116.2441,lat:39.8874},
+    {id:348,name:"华北海淀区第五文献档案",type:"档案",area:"海淀区",desc:"华北海淀区第五文献档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区学院路142号",time:"1935年",protectLevel:"全国重点文物保护单位",lng:116.2991,lat:39.9938},
+    {id:349,name:"解放东城区第二历史档案",type:"档案",area:"东城区",desc:"解放东城区第二历史档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市东城区东直门内大街110号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.4038,lat:39.9265},
+    {id:350,name:"华北顺义区第一纪念馆",type:"设施",area:"顺义区",desc:"华北顺义区第一纪念馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市顺义区后沙峪路3号",time:"2003年建成",protectLevel:"珍贵历史档案",lng:116.7121,lat:40.1505},
+    {id:351,name:"抗日顺义区第二档案馆",type:"设施",area:"顺义区",desc:"作为革命历史设施，抗日顺义区第二档案馆为公众提供了了解革命历史的窗口。",address:"北京市顺义区新国展路70号",time:"2015年建成",protectLevel:"北京市文物保护单位",lng:116.7332,lat:40.1226},
+    {id:352,name:"抗日朝阳区第四纪念广场",type:"遗址",area:"朝阳区",desc:"抗日朝阳区第四纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区朝外大街31号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.4682,lat:39.9439},
+    {id:353,name:"华北海淀区第一烈士墓",type:"遗址",area:"海淀区",desc:"华北海淀区第一烈士墓遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市海淀区颐和园路161号",time:"1948年",protectLevel:"区级文物保护单位",lng:116.1865,lat:39.9853},
+    {id:354,name:"红色丰台区第四图书馆",type:"设施",area:"丰台区",desc:"作为革命历史设施，红色丰台区第四图书馆为公众提供了了解革命历史的窗口。",address:"北京市丰台区西四环南路62号",time:"2010年建成",protectLevel:"区级文物保护单位",lng:116.2609,lat:39.8842},
+    {id:355,name:"革命西城区第四武器",type:"实物",area:"西城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市西城区西直门内大街133号",time:"1945年",protectLevel:"国家一级文物",lng:116.3552,lat:39.9069},
+    {id:356,name:"红色顺义区第三影像档案",type:"档案",area:"顺义区",desc:"红色顺义区第三影像档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市顺义区顺义府前街200号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.8329,lat:40.1478},
+    {id:357,name:"解放西城区第二博物馆",type:"设施",area:"西城区",desc:"作为革命历史设施，解放西城区第二博物馆为公众提供了了解革命历史的窗口。",address:"北京市西城区阜成门内大街191号",time:"2010年建成",protectLevel:"珍贵历史档案",lng:116.3741,lat:39.9212},
+    {id:358,name:"爱国顺义区第一回忆录",type:"文献",area:"顺义区",desc:"爱国顺义区第一回忆录文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市顺义区顺义府前街155号",time:"1919年",protectLevel:"国家一级文物",lng:116.835,lat:40.1012},
+    {id:359,name:"华北丰台区第五书信",type:"手稿",area:"丰台区",desc:"华北丰台区第五书信手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市丰台区西四环南路125号",time:"1933年",protectLevel:"珍贵历史档案",lng:116.2493,lat:39.8561},
+    {id:360,name:"红色丰台区第三学校旧址",type:"旧址",area:"丰台区",desc:"红色丰台区第三学校旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区卢沟桥路124号",time:"1927年",protectLevel:"全国重点文物保护单位",lng:116.2498,lat:39.8997},
+    {id:361,name:"爱国朝阳区第四手迹",type:"手稿",area:"朝阳区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市朝阳区朝外大街51号",time:"1933年",protectLevel:"北京市文物保护单位",lng:116.5318,lat:39.9444},
+    {id:362,name:"华北西城区第三实物档案",type:"档案",area:"西城区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市西城区西单北大街153号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.3537,lat:39.9097},
+    {id:363,name:"革命顺义区第五学校旧址",type:"旧址",area:"顺义区",desc:"革命顺义区第五学校旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市顺义区新国展路147号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.7785,lat:40.1717},
+    {id:364,name:"红色顺义区第二教育基地",type:"设施",area:"顺义区",desc:"红色顺义区第二教育基地设施齐全，是开展爱国主义教育的重要基地。",address:"北京市顺义区天竺路77号",time:"2015年建成",protectLevel:"北京市文物保护单位",lng:116.6881,lat:40.1835},
+    {id:365,name:"北京丰台区第三工具",type:"实物",area:"丰台区",desc:"北京丰台区第三工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市丰台区丰台路85号",time:"1949年",protectLevel:"爱国主义教育基地",lng:116.2231,lat:39.8782},
+    {id:366,name:"革命西城区第二手迹",type:"手稿",area:"西城区",desc:"革命西城区第二手迹手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市西城区西单北大街79号",time:"1919年",protectLevel:"北京市文物保护单位",lng:116.3806,lat:39.9215},
+    {id:367,name:"抗日顺义区第三纪念广场",type:"遗址",area:"顺义区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市顺义区后沙峪路1号",time:"1943年",protectLevel:"国家一级文物",lng:116.76,lat:40.1228},
+    {id:368,name:"华北顺义区第五工具",type:"实物",area:"顺义区",desc:"华北顺义区第五工具实物保存完整，是开展革命传统教育的重要素材。",address:"北京市顺义区裕龙大街3号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.7275,lat:40.1839},
+    {id:369,name:"革命东城区第五图书馆",type:"设施",area:"东城区",desc:"革命东城区第五图书馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市东城区安定门内大街161号",time:"2010年建成",protectLevel:"国家一级文物",lng:116.4165,lat:39.9179},
+    {id:370,name:"爱国朝阳区第四草稿",type:"手稿",area:"朝阳区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市朝阳区朝阳北路195号",time:"1933年",protectLevel:"北京市文物保护单位",lng:116.5245,lat:39.9397},
+    {id:371,name:"北京丰台区第二会议旧址",type:"旧址",area:"丰台区",desc:"北京丰台区第二会议旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区卢沟桥路39号",time:"1949年",protectLevel:"爱国主义教育基地",lng:116.2693,lat:39.8715},
+    {id:372,name:"北京丰台区第三选集",type:"文献",area:"丰台区",desc:"北京丰台区第三选集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市丰台区丰台路22号",time:"1920年",protectLevel:"全国重点文物保护单位",lng:116.2309,lat:39.8736},
+    {id:373,name:"红色朝阳区第四革命旧址",type:"旧址",area:"朝阳区",desc:"作为革命旧址，红色朝阳区第四革命旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市朝阳区朝阳北路45号",time:"1940年",protectLevel:"北京市文物保护单位",lng:116.4605,lat:39.914},
+    {id:374,name:"解放朝阳区第二日记",type:"手稿",area:"朝阳区",desc:"解放朝阳区第二日记手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市朝阳区建国路154号",time:"1923年",protectLevel:"全国重点文物保护单位",lng:116.4901,lat:39.9086},
+    {id:375,name:"解放东城区第五战斗遗址",type:"遗址",area:"东城区",desc:"解放东城区第五战斗遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市东城区东四北大街121号",time:"1941年",protectLevel:"区级文物保护单位",lng:116.4141,lat:39.9153},
+    {id:376,name:"解放西城区第五回忆录",type:"文献",area:"西城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市西城区新街口外大街17号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.3601,lat:39.9058},
+    {id:377,name:"华北海淀区第一纪念品",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区颐和园路13号",time:"1937年",protectLevel:"国家一级文物",lng:116.1537,lat:39.9981},
+    {id:378,name:"抗日西城区第三日记",type:"手稿",area:"西城区",desc:"抗日西城区第三日记手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市西城区西单北大街67号",time:"1945年",protectLevel:"国家一级文物",lng:116.3838,lat:39.9153},
+    {id:379,name:"解放西城区第一理论著作",type:"文献",area:"西城区",desc:"解放西城区第一理论著作是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市西城区西单北大街181号",time:"1919年",protectLevel:"国家一级文物",lng:116.3623,lat:39.9274},
+    {id:380,name:"北京朝阳区第一战斗遗址",type:"遗址",area:"朝阳区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市朝阳区酒仙桥路89号",time:"1945年",protectLevel:"国家一级文物",lng:116.4561,lat:39.9066},
+    {id:381,name:"红色朝阳区第三纪念碑",type:"遗址",area:"朝阳区",desc:"红色朝阳区第三纪念碑遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区建国路83号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.4857,lat:39.9292},
+    {id:382,name:"爱国顺义区第三书信",type:"手稿",area:"顺义区",desc:"爱国顺义区第三书信手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市顺义区新国展路107号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.8043,lat:40.1211},
+    {id:383,name:"红色海淀区第二革命旧址",type:"旧址",area:"海淀区",desc:"作为革命旧址，红色海淀区第二革命旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市海淀区颐和园路142号",time:"1940年",protectLevel:"区级文物保护单位",lng:116.1796,lat:40.0195},
+    {id:384,name:"解放西城区第五服装",type:"实物",area:"西城区",desc:"解放西城区第五服装实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区西单北大街35号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.3598,lat:39.9154},
+    {id:385,name:"北京东城区第五会议旧址",type:"旧址",area:"东城区",desc:"作为革命旧址，北京东城区第五会议旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市东城区东长安街143号",time:"1945年",protectLevel:"珍贵历史档案",lng:116.425,lat:39.9342},
+    {id:386,name:"红色海淀区第一档案馆",type:"设施",area:"海淀区",desc:"红色海淀区第一档案馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市海淀区颐和园路177号",time:"2015年建成",protectLevel:"国家一级文物",lng:116.2977,lat:40.0163},
+    {id:387,name:"革命朝阳区第三联络点旧址",type:"旧址",area:"朝阳区",desc:"革命朝阳区第三联络点旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市朝阳区建国路177号",time:"1930年",protectLevel:"全国重点文物保护单位",lng:116.5449,lat:39.9051},
+    {id:388,name:"抗日顺义区第四会议遗址",type:"遗址",area:"顺义区",desc:"抗日顺义区第四会议遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市顺义区裕龙大街141号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.8292,lat:40.1696},
+    {id:389,name:"解放海淀区第四革命旧址",type:"旧址",area:"海淀区",desc:"解放海淀区第四革命旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市海淀区清华西路132号",time:"1930年",protectLevel:"国家一级文物",lng:116.1657,lat:39.96},
+    {id:390,name:"革命东城区第五革命旧址",type:"旧址",area:"东城区",desc:"革命东城区第五革命旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市东城区东长安街123号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.4032,lat:39.9209},
+    {id:391,name:"解放朝阳区第四服装",type:"实物",area:"朝阳区",desc:"解放朝阳区第四服装是革命历史的实物见证，具有重要的纪念意义。",address:"北京市朝阳区建国路18号",time:"1937年",protectLevel:"国家一级文物",lng:116.5175,lat:39.9412},
+    {id:392,name:"革命东城区第四战斗遗址",type:"遗址",area:"东城区",desc:"革命东城区第四战斗遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市东城区东长安街24号",time:"1943年",protectLevel:"北京市文物保护单位",lng:116.4138,lat:39.9209},
+    {id:393,name:"爱国朝阳区第四教育基地",type:"设施",area:"朝阳区",desc:"爱国朝阳区第四教育基地设施齐全，是开展爱国主义教育的重要基地。",address:"北京市朝阳区朝外大街161号",time:"1987年建成",protectLevel:"全国重点文物保护单位",lng:116.4662,lat:39.9475},
+    {id:394,name:"华北朝阳区第一文集",type:"文献",area:"朝阳区",desc:"华北朝阳区第一文集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市朝阳区朝阳北路79号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.5417,lat:39.907},
+    {id:395,name:"解放顺义区第三革命旧址",type:"旧址",area:"顺义区",desc:"作为革命旧址，解放顺义区第三革命旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市顺义区顺义府前街147号",time:"1949年",protectLevel:"北京市文物保护单位",lng:116.8059,lat:40.1134},
+    {id:396,name:"红色丰台区第二展览馆",type:"设施",area:"丰台区",desc:"红色丰台区第二展览馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市丰台区丰台北路125号",time:"1987年建成",protectLevel:"爱国主义教育基地",lng:116.277,lat:39.8728},
+    {id:397,name:"抗日海淀区第三服装",type:"实物",area:"海淀区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市海淀区中关村大街200号",time:"1937年",protectLevel:"爱国主义教育基地",lng:116.3065,lat:39.9572},
+    {id:398,name:"爱国顺义区第五工具",type:"实物",area:"顺义区",desc:"爱国顺义区第五工具实物保存完整，是开展革命传统教育的重要素材。",address:"北京市顺义区新国展路164号",time:"1941年",protectLevel:"国家一级文物",lng:116.7268,lat:40.1512},
+    {id:399,name:"北京东城区第四指挥部旧址",type:"旧址",area:"东城区",desc:"北京东城区第四指挥部旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市东城区王府井大街169号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.4096,lat:39.9199},
+    {id:400,name:"华北朝阳区第四书信",type:"手稿",area:"朝阳区",desc:"华北朝阳区第四书信手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市朝阳区三里屯路145号",time:"1940年",protectLevel:"区级文物保护单位",lng:116.5442,lat:39.9447},
+    {id:401,name:"解放丰台区第四档案馆",type:"设施",area:"丰台区",desc:"解放丰台区第四档案馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市丰台区卢沟桥路65号",time:"2015年建成",protectLevel:"国家一级文物",lng:116.2113,lat:39.8966},
+    {id:402,name:"爱国顺义区第五革命旧址",type:"旧址",area:"顺义区",desc:"爱国顺义区第五革命旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市顺义区后沙峪路145号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.7356,lat:40.142},
+    {id:403,name:"北京朝阳区第五书信",type:"手稿",area:"朝阳区",desc:"北京朝阳区第五书信手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市朝阳区三里屯路178号",time:"1940年",protectLevel:"国家一级文物",lng:116.5455,lat:39.9408},
+    {id:404,name:"红色东城区第五烈士墓",type:"遗址",area:"东城区",desc:"红色东城区第五烈士墓遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市东城区王府井大街160号",time:"1949年",protectLevel:"珍贵历史档案",lng:116.4142,lat:39.9159},
+    {id:405,name:"北京西城区第四草稿",type:"手稿",area:"西城区",desc:"北京西城区第四草稿手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市西城区西长安街155号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.3871,lat:39.9088},
+    {id:406,name:"解放西城区第一斗争旧址",type:"旧址",area:"西城区",desc:"解放西城区第一斗争旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市西城区西单北大街128号",time:"1925年",protectLevel:"北京市文物保护单位",lng:116.3814,lat:39.9079},
+    {id:407,name:"革命海淀区第二指挥部旧址",type:"旧址",area:"海淀区",desc:"革命海淀区第二指挥部旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市海淀区颐和园路199号",time:"1925年",protectLevel:"北京市文物保护单位",lng:116.2475,lat:39.9583},
+    {id:408,name:"革命西城区第五实物档案",type:"档案",area:"西城区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市西城区西直门内大街32号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.369,lat:39.9186},
+    {id:409,name:"抗日朝阳区第一革命旧址",type:"旧址",area:"朝阳区",desc:"抗日朝阳区第一革命旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市朝阳区建国路110号",time:"1925年",protectLevel:"国家一级文物",lng:116.4728,lat:39.9049},
+    {id:410,name:"抗日海淀区第一工具",type:"实物",area:"海淀区",desc:"抗日海淀区第一工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市海淀区颐和园路118号",time:"1941年",protectLevel:"珍贵历史档案",lng:116.1619,lat:40.0152},
+    {id:411,name:"红色西城区第三革命文献",type:"文献",area:"西城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市西城区西单北大街171号",time:"1938年",protectLevel:"北京市文物保护单位",lng:116.3533,lat:39.9001},
+    {id:412,name:"抗日朝阳区第五博物馆",type:"设施",area:"朝阳区",desc:"抗日朝阳区第五博物馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市朝阳区三里屯路174号",time:"2015年建成",protectLevel:"区级文物保护单位",lng:116.5414,lat:39.9241},
+    {id:413,name:"红色海淀区第五名人档案",type:"档案",area:"海淀区",desc:"红色海淀区第五名人档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区中关村大街146号",time:"1935年",protectLevel:"全国重点文物保护单位",lng:116.3156,lat:40.002},
+    {id:414,name:"红色丰台区第一会议遗址",type:"遗址",area:"丰台区",desc:"红色丰台区第一会议遗址遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市丰台区丰台北路173号",time:"1941年",protectLevel:"国家一级文物",lng:116.2779,lat:39.8508},
+    {id:415,name:"华北朝阳区第二展览馆",type:"设施",area:"朝阳区",desc:"华北朝阳区第二展览馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市朝阳区三里屯路27号",time:"2010年建成",protectLevel:"区级文物保护单位",lng:116.4835,lat:39.9217},
+    {id:416,name:"解放丰台区第四文献档案",type:"档案",area:"丰台区",desc:"解放丰台区第四文献档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市丰台区南三环西路148号",time:"1948年",protectLevel:"爱国主义教育基地",lng:116.2985,lat:39.865},
+    {id:417,name:"革命西城区第三工具",type:"实物",area:"西城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市西城区西直门内大街188号",time:"1941年",protectLevel:"国家一级文物",lng:116.3513,lat:39.9041},
+    {id:418,name:"北京海淀区第二影像档案",type:"档案",area:"海淀区",desc:"北京海淀区第二影像档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市海淀区颐和园路58号",time:"1921年",protectLevel:"珍贵历史档案",lng:116.2566,lat:39.9777},
+    {id:419,name:"革命丰台区第五学校旧址",type:"旧址",area:"丰台区",desc:"革命丰台区第五学校旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市丰台区南三环西路85号",time:"1930年",protectLevel:"国家一级文物",lng:116.2671,lat:39.8967},
+    {id:420,name:"红色东城区第二纪念品",type:"实物",area:"东城区",desc:"红色东城区第二纪念品实物保存完整，是开展革命传统教育的重要素材。",address:"北京市东城区东长安街36号",time:"1949年",protectLevel:"全国重点文物保护单位",lng:116.4111,lat:39.9395},
+    {id:421,name:"爱国丰台区第五革命档案",type:"档案",area:"丰台区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市丰台区丰台北路16号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.2089,lat:39.8721},
+    {id:422,name:"解放顺义区第二教育基地",type:"设施",area:"顺义区",desc:"作为革命历史设施，解放顺义区第二教育基地为公众提供了了解革命历史的窗口。",address:"北京市顺义区后沙峪路21号",time:"2019年建成",protectLevel:"爱国主义教育基地",lng:116.7121,lat:40.1709},
+    {id:423,name:"爱国西城区第二纪念广场",type:"遗址",area:"西城区",desc:"爱国西城区第二纪念广场遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市西城区西单北大街75号",time:"1948年",protectLevel:"国家一级文物",lng:116.3793,lat:39.9091},
+    {id:424,name:"爱国丰台区第三联络点旧址",type:"旧址",area:"丰台区",desc:"爱国丰台区第三联络点旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区丰台北路76号",time:"1945年",protectLevel:"国家一级文物",lng:116.2675,lat:39.8719},
+    {id:425,name:"华北西城区第一会议遗址",type:"遗址",area:"西城区",desc:"这处遗址见证了中国革命的艰难历程，具有重要的纪念意义。",address:"北京市西城区西单北大街123号",time:"1948年",protectLevel:"珍贵历史档案",lng:116.3848,lat:39.915},
+    {id:426,name:"华北西城区第一会议旧址",type:"旧址",area:"西城区",desc:"华北西城区第一会议旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市西城区西直门内大街52号",time:"1935年",protectLevel:"全国重点文物保护单位",lng:116.389,lat:39.927},
+    {id:427,name:"革命西城区第四理论著作",type:"文献",area:"西城区",desc:"革命西城区第四理论著作是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市西城区西直门内大街185号",time:"1938年",protectLevel:"爱国主义教育基地",lng:116.3769,lat:39.9205},
+    {id:428,name:"北京东城区第五文集",type:"文献",area:"东城区",desc:"北京东城区第五文集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市东城区东直门内大街135号",time:"1938年",protectLevel:"爱国主义教育基地",lng:116.4196,lat:39.9215},
+    {id:429,name:"华北丰台区第二斗争旧址",type:"旧址",area:"丰台区",desc:"华北丰台区第二斗争旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市丰台区丰台北路121号",time:"1930年",protectLevel:"北京市文物保护单位",lng:116.2756,lat:39.8678},
+    {id:430,name:"爱国丰台区第三革命文物",type:"实物",area:"丰台区",desc:"爱国丰台区第三革命文物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市丰台区丰台路9号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.2369,lat:39.8602},
+    {id:431,name:"华北东城区第二日记",type:"手稿",area:"东城区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市东城区王府井大街41号",time:"1940年",protectLevel:"珍贵历史档案",lng:116.4008,lat:39.9175},
+    {id:432,name:"抗日朝阳区第二纪念馆",type:"设施",area:"朝阳区",desc:"抗日朝阳区第二纪念馆设施齐全，是开展爱国主义教育的重要基地。",address:"北京市朝阳区三里屯路155号",time:"2019年建成",protectLevel:"爱国主义教育基地",lng:116.484,lat:39.9203},
+    {id:433,name:"红色海淀区第三革命旧址",type:"旧址",area:"海淀区",desc:"红色海淀区第三革命旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市海淀区中关村大街98号",time:"1930年",protectLevel:"全国重点文物保护单位",lng:116.2104,lat:39.97},
+    {id:434,name:"抗日顺义区第五草稿",type:"手稿",area:"顺义区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市顺义区后沙峪路177号",time:"1933年",protectLevel:"全国重点文物保护单位",lng:116.6582,lat:40.1059},
+    {id:435,name:"解放丰台区第五斗争旧址",type:"旧址",area:"丰台区",desc:"解放丰台区第五斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区丰台北路166号",time:"1949年",protectLevel:"爱国主义教育基地",lng:116.2912,lat:39.871},
+    {id:436,name:"红色海淀区第一战斗遗址",type:"遗址",area:"海淀区",desc:"红色海淀区第一战斗遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市海淀区学院路116号",time:"1937年",protectLevel:"全国重点文物保护单位",lng:116.2673,lat:39.9779},
+    {id:437,name:"北京顺义区第二展览馆",type:"设施",area:"顺义区",desc:"北京顺义区第二展览馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市顺义区天竺路181号",time:"2010年建成",protectLevel:"爱国主义教育基地",lng:116.7541,lat:40.1126},
+    {id:438,name:"抗日西城区第四文集",type:"文献",area:"西城区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市西城区新街口外大街51号",time:"1921年",protectLevel:"北京市文物保护单位",lng:116.3533,lat:39.9152},
+    {id:439,name:"爱国丰台区第二战斗遗址",type:"遗址",area:"丰台区",desc:"爱国丰台区第二战斗遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市丰台区南三环西路129号",time:"1945年",protectLevel:"爱国主义教育基地",lng:116.2717,lat:39.8665},
+    {id:440,name:"北京东城区第一图书馆",type:"设施",area:"东城区",desc:"北京东城区第一图书馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市东城区王府井大街112号",time:"2019年建成",protectLevel:"国家一级文物",lng:116.4031,lat:39.9107},
+    {id:441,name:"华北顺义区第五教育基地",type:"设施",area:"顺义区",desc:"作为革命历史设施，华北顺义区第五教育基地为公众提供了了解革命历史的窗口。",address:"北京市顺义区后沙峪路128号",time:"2019年建成",protectLevel:"国家一级文物",lng:116.7186,lat:40.146},
+    {id:442,name:"北京顺义区第一会议旧址",type:"旧址",area:"顺义区",desc:"北京顺义区第一会议旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市顺义区天竺路103号",time:"1940年",protectLevel:"国家一级文物",lng:116.7186,lat:40.1937},
+    {id:443,name:"爱国朝阳区第二影像档案",type:"档案",area:"朝阳区",desc:"爱国朝阳区第二影像档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市朝阳区建国路165号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.4986,lat:39.9116},
+    {id:444,name:"爱国朝阳区第一日记",type:"手稿",area:"朝阳区",desc:"爱国朝阳区第一日记手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市朝阳区三里屯路140号",time:"1933年",protectLevel:"爱国主义教育基地",lng:116.4833,lat:39.9068},
+    {id:445,name:"抗日朝阳区第四武器",type:"实物",area:"朝阳区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市朝阳区朝阳北路52号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.5135,lat:39.9473},
+    {id:446,name:"解放海淀区第四教育基地",type:"设施",area:"海淀区",desc:"作为革命历史设施，解放海淀区第四教育基地为公众提供了了解革命历史的窗口。",address:"北京市海淀区颐和园路167号",time:"2015年建成",protectLevel:"珍贵历史档案",lng:116.1951,lat:40.0151},
+    {id:447,name:"华北朝阳区第三回忆录",type:"文献",area:"朝阳区",desc:"华北朝阳区第三回忆录是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市朝阳区酒仙桥路137号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.5385,lat:39.9315},
+    {id:448,name:"解放西城区第一历史实物",type:"实物",area:"西城区",desc:"解放西城区第一历史实物实物保存完整，是开展革命传统教育的重要素材。",address:"北京市西城区西单北大街95号",time:"1949年",protectLevel:"国家一级文物",lng:116.3639,lat:39.9128},
+    {id:449,name:"爱国东城区第三手迹",type:"手稿",area:"东城区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市东城区安定门内大街148号",time:"1933年",protectLevel:"全国重点文物保护单位",lng:116.4138,lat:39.9383},
+    {id:450,name:"革命顺义区第四工具",type:"实物",area:"顺义区",desc:"革命顺义区第四工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市顺义区裕龙大街29号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.8291,lat:40.1699},
+    {id:451,name:"解放朝阳区第五会议遗址",type:"遗址",area:"朝阳区",desc:"解放朝阳区第五会议遗址遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市朝阳区建国路133号",time:"1949年",protectLevel:"珍贵历史档案",lng:116.5382,lat:39.9267},
+    {id:452,name:"革命朝阳区第二历史实物",type:"实物",area:"朝阳区",desc:"革命朝阳区第二历史实物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市朝阳区朝阳北路163号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.4821,lat:39.9138},
+    {id:453,name:"爱国东城区第四纪念品",type:"实物",area:"东城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市东城区东四北大街189号",time:"1937年",protectLevel:"全国重点文物保护单位",lng:116.4179,lat:39.9142},
+    {id:454,name:"北京西城区第三服装",type:"实物",area:"西城区",desc:"北京西城区第三服装是革命历史的实物见证，具有重要的纪念意义。",address:"北京市西城区西长安街119号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.3856,lat:39.906},
+    {id:455,name:"抗日西城区第二斗争旧址",type:"旧址",area:"西城区",desc:"抗日西城区第二斗争旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区西单北大街2号",time:"1940年",protectLevel:"全国重点文物保护单位",lng:116.3895,lat:39.9159},
+    {id:456,name:"革命顺义区第五革命文物",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区天竺路162号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.8393,lat:40.169},
+    {id:457,name:"红色丰台区第三学校旧址",type:"旧址",area:"丰台区",desc:"作为革命旧址，红色丰台区第三学校旧址承载着丰富的红色记忆，是爱国主义教育的重要场所。",address:"北京市丰台区西四环南路162号",time:"1925年",protectLevel:"北京市文物保护单位",lng:116.2612,lat:39.8815},
+    {id:458,name:"解放顺义区第一革命文物",type:"实物",area:"顺义区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市顺义区新国展路199号",time:"1949年",protectLevel:"区级文物保护单位",lng:116.7508,lat:40.1953},
+    {id:459,name:"革命西城区第三革命旧址",type:"旧址",area:"西城区",desc:"革命西城区第三革命旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市西城区西直门内大街68号",time:"1948年",protectLevel:"全国重点文物保护单位",lng:116.3541,lat:39.9161},
+    {id:460,name:"红色海淀区第二选集",type:"文献",area:"海淀区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市海淀区学院路58号",time:"1921年",protectLevel:"爱国主义教育基地",lng:116.2718,lat:39.9863},
+    {id:461,name:"解放海淀区第五历史实物",type:"实物",area:"海淀区",desc:"解放海淀区第五历史实物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市海淀区颐和园路13号",time:"1937年",protectLevel:"国家一级文物",lng:116.1917,lat:39.9501},
+    {id:462,name:"解放朝阳区第三革命旧址",type:"旧址",area:"朝阳区",desc:"解放朝阳区第三革命旧址曾是革命先辈们工作和战斗过的地方，具有重要的历史价值。",address:"北京市朝阳区酒仙桥路129号",time:"1948年",protectLevel:"国家一级文物",lng:116.5078,lat:39.9497},
+    {id:463,name:"北京东城区第四武器",type:"实物",area:"东城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市东城区安定门内大街116号",time:"1949年",protectLevel:"区级文物保护单位",lng:116.406,lat:39.9189},
+    {id:464,name:"抗日顺义区第四革命文物",type:"实物",area:"顺义区",desc:"抗日顺义区第四革命文物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市顺义区裕龙大街126号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.7129,lat:40.1011},
+    {id:465,name:"华北朝阳区第二档案馆",type:"设施",area:"朝阳区",desc:"作为革命历史设施，华北朝阳区第二档案馆为公众提供了了解革命历史的窗口。",address:"北京市朝阳区朝外大街86号",time:"2015年建成",protectLevel:"北京市文物保护单位",lng:116.5313,lat:39.928},
+    {id:466,name:"华北海淀区第三文集",type:"文献",area:"海淀区",desc:"华北海淀区第三文集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市海淀区学院路59号",time:"1938年",protectLevel:"国家一级文物",lng:116.1965,lat:40.0105},
+    {id:467,name:"红色朝阳区第五实物档案",type:"档案",area:"朝阳区",desc:"红色朝阳区第五实物档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市朝阳区朝外大街174号",time:"1948年",protectLevel:"国家一级文物",lng:116.4929,lat:39.9422},
+    {id:468,name:"红色西城区第三名人档案",type:"档案",area:"西城区",desc:"红色西城区第三名人档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市西城区西单北大街146号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.389,lat:39.9149},
+    {id:469,name:"爱国顺义区第四历史实物",type:"实物",area:"顺义区",desc:"爱国顺义区第四历史实物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市顺义区新国展路177号",time:"1945年",protectLevel:"国家一级文物",lng:116.7249,lat:40.1345},
+    {id:470,name:"革命东城区第一教育基地",type:"设施",area:"东城区",desc:"革命东城区第一教育基地设施齐全，是开展爱国主义教育的重要基地。",address:"北京市东城区安定门内大街106号",time:"2019年建成",protectLevel:"区级文物保护单位",lng:116.417,lat:39.9219},
+    {id:471,name:"解放丰台区第一革命旧址",type:"旧址",area:"丰台区",desc:"解放丰台区第一革命旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区卢沟桥路16号",time:"1920年",protectLevel:"爱国主义教育基地",lng:116.2826,lat:39.8611},
+    {id:472,name:"红色朝阳区第一名人档案",type:"档案",area:"朝阳区",desc:"红色朝阳区第一名人档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市朝阳区建国路105号",time:"1949年",protectLevel:"国家一级文物",lng:116.5454,lat:39.9105},
+    {id:473,name:"红色海淀区第一实物档案",type:"档案",area:"海淀区",desc:"红色海淀区第一实物档案收录了珍贵的革命历史档案，是研究革命史的重要资料。",address:"北京市海淀区颐和园路80号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.2871,lat:40.0049},
+    {id:474,name:"爱国顺义区第五手稿",type:"手稿",area:"顺义区",desc:"爱国顺义区第五手稿手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市顺义区天竺路110号",time:"1933年",protectLevel:"全国重点文物保护单位",lng:116.7926,lat:40.1305},
+    {id:475,name:"解放丰台区第五联络点旧址",type:"旧址",area:"丰台区",desc:"解放丰台区第五联络点旧址是重要的革命历史遗迹，见证了中国革命的关键时刻。",address:"北京市丰台区南三环西路31号",time:"1948年",protectLevel:"珍贵历史档案",lng:116.231,lat:39.8942},
+    {id:476,name:"解放丰台区第二笔记",type:"手稿",area:"丰台区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市丰台区南三环西路91号",time:"1933年",protectLevel:"区级文物保护单位",lng:116.2913,lat:39.8917},
+    {id:477,name:"革命顺义区第一革命档案",type:"档案",area:"顺义区",desc:"革命顺义区第一革命档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市顺义区后沙峪路15号",time:"1945年",protectLevel:"爱国主义教育基地",lng:116.7631,lat:40.1138},
+    {id:478,name:"解放海淀区第五纪念品",type:"实物",area:"海淀区",desc:"解放海淀区第五纪念品是革命历史的实物见证，具有重要的纪念意义。",address:"北京市海淀区颐和园路94号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.3484,lat:39.9983},
+    {id:479,name:"抗日丰台区第五实物档案",type:"档案",area:"丰台区",desc:"这份档案记录了革命历史的重要事件，具有极高的史料价值。",address:"北京市丰台区丰台北路16号",time:"1945年",protectLevel:"全国重点文物保护单位",lng:116.2259,lat:39.8959},
+    {id:480,name:"抗日西城区第三文集",type:"文献",area:"西城区",desc:"抗日西城区第三文集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市西城区阜成门内大街11号",time:"1938年",protectLevel:"全国重点文物保护单位",lng:116.3576,lat:39.9213},
+    {id:481,name:"抗日朝阳区第四日记",type:"手稿",area:"朝阳区",desc:"抗日朝阳区第四日记手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市朝阳区建国路157号",time:"1940年",protectLevel:"爱国主义教育基地",lng:116.4969,lat:39.9101},
+    {id:482,name:"红色丰台区第五选集",type:"文献",area:"丰台区",desc:"红色丰台区第五选集文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市丰台区丰台路89号",time:"1938年",protectLevel:"北京市文物保护单位",lng:116.2694,lat:39.8793},
+    {id:483,name:"爱国丰台区第一日记",type:"手稿",area:"丰台区",desc:"这份手稿记录了革命先辈的思考和创作过程，是宝贵的文化遗产。",address:"北京市丰台区南三环西路196号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.2995,lat:39.8798},
+    {id:484,name:"华北海淀区第二纪念广场",type:"遗址",area:"海淀区",desc:"华北海淀区第二纪念广场遗址保存完好，是研究革命历史的重要实物资料。",address:"北京市海淀区颐和园路113号",time:"1943年",protectLevel:"北京市文物保护单位",lng:116.1663,lat:40.0189},
+    {id:485,name:"解放朝阳区第一历史实物",type:"实物",area:"朝阳区",desc:"解放朝阳区第一历史实物是革命历史的实物见证，具有重要的纪念意义。",address:"北京市朝阳区三里屯路79号",time:"1941年",protectLevel:"全国重点文物保护单位",lng:116.4878,lat:39.9007},
+    {id:486,name:"北京朝阳区第四革命文献",type:"文献",area:"朝阳区",desc:"北京朝阳区第四革命文献文献具有重要的历史价值，是研究革命思想的重要资料。",address:"北京市朝阳区建国路115号",time:"1919年",protectLevel:"国家一级文物",lng:116.4675,lat:39.9291},
+    {id:487,name:"爱国东城区第四博物馆",type:"设施",area:"东城区",desc:"爱国东城区第四博物馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市东城区东长安街184号",time:"1987年建成",protectLevel:"爱国主义教育基地",lng:116.427,lat:39.9167},
+    {id:488,name:"革命东城区第三选集",type:"文献",area:"东城区",desc:"革命东城区第三选集是重要的革命文献，记录了革命先辈的思想和理论。",address:"北京市东城区东直门内大街149号",time:"1920年",protectLevel:"区级文物保护单位",lng:116.421,lat:39.9271},
+    {id:489,name:"抗日西城区第五日记",type:"手稿",area:"西城区",desc:"抗日西城区第五日记手稿是革命先辈亲笔书写的珍贵文献，具有极高的文物价值。",address:"北京市西城区阜成门内大街155号",time:"1940年",protectLevel:"区级文物保护单位",lng:116.3844,lat:39.9044},
+    {id:490,name:"革命东城区第三手稿",type:"手稿",area:"东城区",desc:"革命东城区第三手稿手稿保存完好，为研究革命历史提供了直接证据。",address:"北京市东城区东长安街89号",time:"1933年",protectLevel:"北京市文物保护单位",lng:116.4153,lat:39.9287},
+    {id:491,name:"抗日西城区第二武器",type:"实物",area:"西城区",desc:"抗日西城区第二武器是革命历史的实物见证，具有重要的纪念意义。",address:"北京市西城区西直门内大街17号",time:"1945年",protectLevel:"珍贵历史档案",lng:116.3531,lat:39.9006},
+    {id:492,name:"华北丰台区第一工具",type:"实物",area:"丰台区",desc:"华北丰台区第一工具是革命历史的实物见证，具有重要的纪念意义。",address:"北京市丰台区西四环南路176号",time:"1949年",protectLevel:"国家一级文物",lng:116.2912,lat:39.8863},
+    {id:493,name:"爱国海淀区第一教育基地",type:"设施",area:"海淀区",desc:"爱国海淀区第一教育基地是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区清华西路47号",time:"2010年建成",protectLevel:"国家一级文物",lng:116.2946,lat:39.9706},
+    {id:494,name:"抗日朝阳区第二纪念碑",type:"遗址",area:"朝阳区",desc:"抗日朝阳区第二纪念碑遗址记录了革命历史的重要篇章，是缅怀先烈的教育基地。",address:"北京市朝阳区朝外大街76号",time:"1945年",protectLevel:"珍贵历史档案",lng:116.5257,lat:39.9248},
+    {id:495,name:"爱国海淀区第五档案馆",type:"设施",area:"海淀区",desc:"爱国海淀区第五档案馆是展示革命历史的重要场所，收藏了大量珍贵文物。",address:"北京市海淀区颐和园路51号",time:"2019年建成",protectLevel:"珍贵历史档案",lng:116.2237,lat:39.9875},
+    {id:496,name:"北京丰台区第二服装",type:"实物",area:"丰台区",desc:"北京丰台区第二服装是革命历史的实物见证，具有重要的纪念意义。",address:"北京市丰台区南三环西路15号",time:"1937年",protectLevel:"爱国主义教育基地",lng:116.2438,lat:39.8513},
+    {id:497,name:"爱国朝阳区第四文集",type:"文献",area:"朝阳区",desc:"这部文献对中国革命产生了深远影响，是红色文化的重要载体。",address:"北京市朝阳区朝阳北路101号",time:"1919年",protectLevel:"区级文物保护单位",lng:116.4961,lat:39.9165},
+    {id:498,name:"抗日西城区第五名人档案",type:"档案",area:"西城区",desc:"抗日西城区第五名人档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市西城区西单北大街51号",time:"1921年",protectLevel:"爱国主义教育基地",lng:116.3768,lat:39.9212},
+    {id:499,name:"华北东城区第一纪念品",type:"实物",area:"东城区",desc:"这件实物见证了革命先辈的英勇事迹，是珍贵的革命文物。",address:"北京市东城区王府井大街40号",time:"1945年",protectLevel:"北京市文物保护单位",lng:116.4121,lat:39.9349},
+    {id:500,name:"红色丰台区第一历史档案",type:"档案",area:"丰台区",desc:"红色丰台区第一历史档案档案保存完整，为革命历史研究提供了第一手资料。",address:"北京市丰台区西四环南路73号",time:"1919年",protectLevel:"爱国主义教育基地",lng:116.2881,lat:39.8694},
+    {id:501,name:"东城区东四北大街革命联络站",type:"旧址",area:"东城区",desc:"东四北大街一处秘密联络点，曾是中共地下党传递情报的重要场所。",address:"北京市东城区前门大街69号",time:"1940年代",protectLevel:"区级文物保护单位",lng:116.4104,lat:39.9133},
+    {id:502,name:"东城区北新桥地下党活动点",type:"旧址",area:"东城区",desc:"北新桥附近一处隐蔽的革命活动据点，为解放战争提供了重要情报支持。",address:"北京市东城区景山前街67号",time:"1947年",protectLevel:"区级文物保护单位",lng:116.4241,lat:39.9241},
+    {id:503,name:"东城区东直门内大街进步书店",type:"旧址",area:"东城区",desc:"进步知识分子创办的书店，秘密销售革命书籍和进步刊物。",address:"北京市东城区东四南大街94号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.4288,lat:39.9145},
+    {id:504,name:"东城区灯市口学生运动旧址",type:"旧址",area:"东城区",desc:"五四运动时期学生集会的重要场所，见证了青年学生的爱国热情。",address:"北京市东城区雍和宫大街85号",time:"1919年",protectLevel:"北京市文物保护单位",lng:116.4011,lat:39.9261},
+    {id:505,name:"东城区东单北大街工人俱乐部",type:"旧址",area:"东城区",desc:"早期工人运动的组织中心，为工人阶级觉醒发挥了重要作用。",address:"北京市东城区天安门广场172号",time:"1925年",protectLevel:"区级文物保护单位",lng:116.4288,lat:39.9341},
+    {id:506,name:"东城区崇文门内进步团体联络处",type:"旧址",area:"东城区",desc:"多个进步团体的秘密联络地点，协调抗日救亡运动。",address:"北京市东城区东直门内大街18号",time:"1936年",protectLevel:"区级文物保护单位",lng:116.4288,lat:39.9185},
+    {id:507,name:"东城区王府井大街进步报刊编辑部",type:"旧址",area:"东城区",desc:"进步报刊的编辑出版地点，传播马克思主义思想。",address:"北京市东城区建国门内大街147号",time:"1920年",protectLevel:"区级文物保护单位",lng:116.4186,lat:39.9229},
+    {id:508,name:"东城区安定门内进步青年聚会点",type:"旧址",area:"东城区",desc:"进步青年秘密聚会交流革命思想的场所。",address:"北京市东城区东长安街178号",time:"1930年",protectLevel:"区级文物保护单位",lng:116.4038,lat:39.9322},
+    {id:509,name:"东城区交道口进步学生宿舍",type:"旧址",area:"东城区",desc:"进步学生秘密居住和组织活动的宿舍旧址。",address:"北京市东城区天安门广场123号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.4036,lat:39.9226},
+    {id:510,name:"东城区雍和宫附近革命宣传点",type:"旧址",area:"东城区",desc:"利用庙会人多进行革命宣传的秘密据点。",address:"北京市东城区安定门外大街153号",time:"1938年",protectLevel:"区级文物保护单位",lng:116.4286,lat:39.9345},
+    {id:511,name:"东城区天安门广场五四运动遗址",type:"遗址",area:"东城区",desc:"1919年五四运动的核心活动区域，见证了伟大的爱国运动。",address:"北京市东城区前门大街82号",time:"1919年",protectLevel:"全国重点文物保护单位",lng:116.4254,lat:39.9223},
+    {id:512,name:"东城区长安街一二·九运动遗址",type:"遗址",area:"东城区",desc:"1935年一二·九运动学生游行的主要路线区域。",address:"北京市东城区东直门内大街98号",time:"1935年",protectLevel:"爱国主义教育基地",lng:116.4243,lat:39.9377},
+    {id:513,name:"东城区前门大街反帝爱国运动遗址",type:"遗址",area:"东城区",desc:"多次反帝爱国运动的重要活动区域。",address:"北京市东城区建国门内大街200号",time:"1925年",protectLevel:"区级文物保护单位",lng:116.401,lat:39.9121},
+    {id:514,name:"东城区正阳门学生请愿遗址",type:"遗址",area:"东城区",desc:"学生请愿活动的重要聚集地。",address:"北京市东城区南锣鼓巷57号",time:"1931年",protectLevel:"区级文物保护单位",lng:116.4205,lat:39.9129},
+    {id:515,name:"东城区故宫博物院",type:"设施",area:"东城区",desc:"世界上现存规模最大、保存最为完整的木质结构古建筑群，收藏大量珍贵文物。",address:"北京市东城区东四北大街95号",time:"1925年建成",protectLevel:"世界文化遗产",lng:116.4128,lat:39.9331},
+    {id:516,name:"东城区中国美术馆",type:"设施",area:"东城区",desc:"国家级美术馆，收藏展示大量近现代美术作品。",address:"北京市东城区北新桥114号",time:"1963年建成",protectLevel:"国家级美术馆",lng:116.4277,lat:39.9373},
+    {id:517,name:"东城区北京人民艺术剧院",type:"设施",area:"东城区",desc:"国家级剧院，创作演出大量经典话剧作品。",address:"北京市东城区东长安街48号",time:"1952年建成",protectLevel:"国家级剧院",lng:116.4272,lat:39.9245},
+    {id:518,name:"东城区首都博物馆东馆",type:"设施",area:"东城区",desc:"展示北京历史文化的重要博物馆。",address:"北京市东城区安定门内大街44号",time:"2021年建成",protectLevel:"国家一级博物馆",lng:116.411,lat:39.9161},
+    {id:519,name:"东城区中国美术馆东馆",type:"设施",area:"东城区",desc:"拓展艺术展示空间的重要场馆。",address:"北京市东城区北新桥194号",time:"2018年建成",protectLevel:"国家级美术馆",lng:116.4178,lat:39.9233},
+    {id:520,name:"东城区北京图书大厦",type:"设施",area:"东城区",desc:"大型图书零售和文化交流中心。",address:"北京市东城区北新桥192号",time:"1998年建成",protectLevel:"北京市文化地标",lng:116.4268,lat:39.9324},
+    {id:521,name:"东城区国家大剧院戏剧场",type:"设施",area:"东城区",desc:"专业戏剧演出场所，上演经典和现代戏剧作品。",address:"北京市东城区安定门外大街19号",time:"2007年建成",protectLevel:"国家级艺术殿堂",lng:116.4013,lat:39.9372},
+    {id:522,name:"东城区北京画院美术馆",type:"设施",area:"东城区",desc:"展示北京画院艺术家作品的专业美术馆。",address:"北京市东城区前门大街145号",time:"1997年建成",protectLevel:"国家一级博物馆",lng:116.4021,lat:39.9351},
+    {id:523,name:"东城区中国国家博物馆南馆",type:"设施",area:"东城区",desc:"扩展国家博物馆展示空间的重要场馆。",address:"北京市东城区前门大街111号",time:"2011年建成",protectLevel:"国家级博物馆",lng:116.4219,lat:39.9119},
+    {id:524,name:"东城区五四运动史料汇编",type:"档案",area:"东城区",desc:"收录五四运动相关珍贵史料的档案集。",address:"北京市东城区北新桥73号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.4171,lat:39.9241},
+    {id:525,name:"东城区新文化运动文献档案",type:"档案",area:"东城区",desc:"记录新文化运动发展历程的珍贵档案。",address:"北京市东城区安定门内大街75号",time:"1915-1923年",protectLevel:"珍贵历史档案",lng:116.4076,lat:39.929},
+    {id:526,name:"东城区一二·九运动档案",type:"档案",area:"东城区",desc:"记录一二·九运动全过程的珍贵史料。",address:"北京市东城区雍和宫大街177号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.408,lat:39.9264},
+    {id:527,name:"东城区抗日战争时期地下党档案",type:"档案",area:"东城区",desc:"抗日战争时期东城地区地下党活动的珍贵记录。",address:"北京市东城区王府井大街176号",time:"1937-1945年",protectLevel:"珍贵历史档案",lng:116.4154,lat:39.9329},
+    {id:528,name:"东城区解放战争时期学运档案",type:"档案",area:"东城区",desc:"解放战争时期学生运动的珍贵史料。",address:"北京市东城区雍和宫大街104号",time:"1946-1949年",protectLevel:"珍贵历史档案",lng:116.4236,lat:39.9123},
+    {id:529,name:"东城区新中国成立庆典档案",type:"档案",area:"东城区",desc:"1949年开国大典的珍贵影像和文字档案。",address:"北京市东城区前门大街78号",time:"1949年",protectLevel:"国家一级文物",lng:116.4195,lat:39.936},
+    {id:530,name:"东城区东城区志革命史料",type:"档案",area:"东城区",desc:"东城区志中关于革命历史的珍贵记载。",address:"北京市东城区安定门外大街34号",time:"1949年后",protectLevel:"珍贵历史档案",lng:116.4058,lat:39.9304},
+    {id:531,name:"东城区《新青年》杂志合订本",type:"文献",area:"东城区",desc:"《新青年》杂志的珍贵合订本，记录新文化运动历程。",address:"北京市东城区东直门内大街148号",time:"1915-1926年",protectLevel:"国家一级文物",lng:116.4093,lat:39.9126},
+    {id:532,name:"东城区《每周评论》原刊",type:"文献",area:"东城区",desc:"李大钊主编的进步刊物，传播马克思主义。",address:"北京市东城区安定门内大街28号",time:"1918年",protectLevel:"国家一级文物",lng:116.43,lat:39.9351},
+    {id:533,name:"东城区《湘江评论》影印本",type:"文献",area:"东城区",desc:"毛泽东创办的革命刊物影印本。",address:"北京市东城区东四北大街132号",time:"1919年",protectLevel:"珍贵革命文献",lng:116.4174,lat:39.9195},
+    {id:534,name:"东城区《劳动者》刊物",type:"文献",area:"东城区",desc:"早期工人运动的宣传刊物。",address:"北京市东城区南锣鼓巷86号",time:"1920年",protectLevel:"珍贵革命文献",lng:116.4202,lat:39.9229},
+    {id:535,name:"东城区鲁迅杂文集手稿影印本",type:"文献",area:"东城区",desc:"鲁迅杂文手稿的珍贵影印本。",address:"北京市东城区东长安街190号",time:"1925-1936年",protectLevel:"珍贵文物",lng:116.4152,lat:39.9244},
+    {id:536,name:"东城区《语丝》杂志原刊",type:"文献",area:"东城区",desc:"鲁迅等人创办的文学杂志。",address:"北京市东城区前门大街51号",time:"1924年",protectLevel:"珍贵文献",lng:116.4019,lat:39.9222},
+    {id:537,name:"东城区《莽原》杂志原刊",type:"文献",area:"东城区",desc:"鲁迅主编的进步文学刊物。",address:"北京市东城区安定门外大街189号",time:"1925年",protectLevel:"珍贵文献",lng:116.4099,lat:39.9178},
+    {id:538,name:"东城区鲁迅《狂人日记》手稿",type:"手稿",area:"东城区",desc:"中国现代文学史上第一篇白话小说的手稿。",address:"北京市东城区东四南大街30号",time:"1918年",protectLevel:"国家一级文物",lng:116.4287,lat:39.9133},
+    {id:539,name:"东城区李大钊《青春》手稿",type:"手稿",area:"东城区",desc:"李大钊号召青年追求进步的经典文章手稿。",address:"北京市东城区东直门内大街182号",time:"1916年",protectLevel:"国家一级文物",lng:116.4031,lat:39.924},
+    {id:540,name:"东城区胡适《文学改良刍议》手稿",type:"手稿",area:"东城区",desc:"开启新文化运动文学革命的重要文献手稿。",address:"北京市东城区南锣鼓巷87号",time:"1917年",protectLevel:"国家一级文物",lng:116.401,lat:39.9355},
+    {id:541,name:"东城区陈独秀《敬告青年》手稿",type:"手稿",area:"东城区",desc:"《新青年》创刊号的发刊词手稿。",address:"北京市东城区南锣鼓巷117号",time:"1915年",protectLevel:"国家一级文物",lng:116.4013,lat:39.9219},
+    {id:542,name:"东城区周作人《人的文学》手稿",type:"手稿",area:"东城区",desc:"新文化运动时期重要文学理论文章手稿。",address:"北京市东城区东直门内大街80号",time:"1918年",protectLevel:"珍贵文物",lng:116.4251,lat:39.926},
+    {id:543,name:"东城区钱玄同《文学革命论》手稿",type:"手稿",area:"东城区",desc:"倡导文学革命的重要文章手稿。",address:"北京市东城区景山前街181号",time:"1917年",protectLevel:"珍贵文物",lng:116.4138,lat:39.9318},
+    {id:544,name:"东城区五四运动传单原件",type:"实物",area:"东城区",desc:"五四运动期间散发的革命传单原件。",address:"北京市东城区前门大街109号",time:"1919年",protectLevel:"国家一级文物",lng:116.4216,lat:39.9145},
+    {id:545,name:"东城区新文化运动时期印刷机",type:"实物",area:"东城区",desc:"印刷《新青年》等进步刊物的老式印刷机。",address:"北京市东城区东长安街42号",time:"1915年",protectLevel:"珍贵文物",lng:116.4035,lat:39.9218},
+    {id:546,name:"东城区北京大学校徽原件",type:"实物",area:"东城区",desc:"蔡元培时期北京大学校徽原件。",address:"北京市东城区东直门内大街29号",time:"1917年",protectLevel:"珍贵文物",lng:116.4085,lat:39.9229},
+    {id:547,name:"东城区五四运动学生臂章",type:"实物",area:"东城区",desc:"五四运动学生游行时佩戴的臂章。",address:"北京市东城区安定门内大街170号",time:"1919年",protectLevel:"珍贵文物",lng:116.4242,lat:39.9157},
+    {id:548,name:"东城区一二·九运动纪念章",type:"实物",area:"东城区",desc:"纪念一二·九运动的特制纪念章。",address:"北京市东城区南锣鼓巷105号",time:"1935年",protectLevel:"珍贵文物",lng:116.41,lat:39.9306},
+    {id:549,name:"东城区鲁迅故居珍贵遗物",type:"实物",area:"东城区",desc:"鲁迅故居保存的珍贵生活和工作用品。",address:"北京市东城区南锣鼓巷10号",time:"1924-1926年",protectLevel:"珍贵文物",lng:116.422,lat:39.9354},
+    {id:550,name:"东城区老舍《茶馆》首演节目单",type:"实物",area:"东城区",desc:"《茶馆》1958年首演的珍贵节目单。",address:"北京市东城区安定门内大街76号",time:"1958年",protectLevel:"珍贵文物",lng:116.4012,lat:39.9271},
+    {id:551,name:"东城区沙滩后街革命活动点",type:"旧址",area:"东城区",desc:"沙滩后街一处秘密革命活动据点。",address:"北京市东城区五四大街90号",time:"1926年",protectLevel:"区级文物保护单位",lng:116.4017,lat:39.9228},
+    {id:552,name:"东城区景山东街进步学生社团",type:"旧址",area:"东城区",desc:"进步学生秘密组建社团的活动地点。",address:"北京市东城区崇文门内大街121号",time:"1931年",protectLevel:"区级文物保护单位",lng:116.4207,lat:39.9385},
+    {id:553,name:"东城区五道营胡同革命联络站",type:"旧址",area:"东城区",desc:"隐蔽在胡同深处的革命联络站。",address:"北京市东城区交道口南大街52号",time:"1942年",protectLevel:"区级文物保护单位",lng:116.4055,lat:39.9301},
+    {id:554,name:"东城区国子监街进步书店旧址",type:"旧址",area:"东城区",desc:"国子监街一家进步书店的旧址。",address:"北京市东城区东四十条112号",time:"1933年",protectLevel:"区级文物保护单位",lng:116.405,lat:39.9192},
+    {id:555,name:"东城区方家胡同工人夜校",type:"旧址",area:"东城区",desc:"为工人阶级提供教育的夜校旧址。",address:"北京市东城区交道口南大街113号",time:"1922年",protectLevel:"区级文物保护单位",lng:116.4074,lat:39.9295},
+    {id:556,name:"东城区黑芝麻胡同革命据点",type:"旧址",area:"东城区",desc:"黑芝麻胡同一处隐蔽的革命据点。",address:"北京市东城区雍和宫大街73号",time:"1946年",protectLevel:"区级文物保护单位",lng:116.4235,lat:39.9378},
+    {id:557,name:"东城区沙井胡同进步青年聚会处",type:"旧址",area:"东城区",desc:"进步青年秘密聚会交流的场所。",address:"北京市东城区东四南大街117号",time:"1934年",protectLevel:"区级文物保护单位",lng:116.4139,lat:39.9295},
+    {id:558,name:"东城区魏家胡同进步报刊发行点",type:"旧址",area:"东城区",desc:"进步报刊的秘密发行地点。",address:"北京市东城区东长安街71号",time:"1928年",protectLevel:"区级文物保护单位",lng:116.4064,lat:39.9273},
+    {id:559,name:"东城区板厂胡同革命联络处",type:"旧址",area:"东城区",desc:"解放战争时期的重要联络处。",address:"北京市东城区五四大街51号",time:"1947年",protectLevel:"区级文物保护单位",lng:116.4222,lat:39.9208},
+    {id:560,name:"东城区豆角胡同抗日宣传点",type:"旧址",area:"东城区",desc:"抗日战争时期秘密宣传抗日的据点。",address:"北京市东城区南锣鼓巷3号",time:"1938年",protectLevel:"区级文物保护单位",lng:116.4072,lat:39.9226},
+    {id:561,name:"东城区帽儿胡同进步学者住所",type:"旧址",area:"东城区",desc:"多位进步学者秘密居住和工作的场所。",address:"北京市东城区王府井大街108号",time:"1930年",protectLevel:"区级文物保护单位",lng:116.4007,lat:39.9113},
+    {id:562,name:"东城区雨儿胡同革命印刷点",type:"旧址",area:"东城区",desc:"秘密印刷革命宣传材料的据点。",address:"北京市东城区朝阳门内大街144号",time:"1943年",protectLevel:"区级文物保护单位",lng:116.4095,lat:39.9164},
+    {id:563,name:"东城区炒豆胡同进步社团活动室",type:"旧址",area:"东城区",desc:"进步社团秘密活动的场所。",address:"北京市东城区东直门内大街99号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.4165,lat:39.9322},
+    {id:564,name:"东城区菊儿胡同革命联络点",type:"旧址",area:"东城区",desc:"隐蔽的革命联络点位。",address:"北京市东城区南锣鼓巷79号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.4149,lat:39.9304},
+    {id:565,name:"东城区中国历史博物馆",type:"设施",area:"东城区",desc:"展示中华五千年文明历史的国家级博物馆。",address:"北京市东城区南锣鼓巷173号",time:"1961年建成",protectLevel:"国家级博物馆",lng:116.4173,lat:39.9111},
+    {id:566,name:"东城区北京自然博物馆",type:"设施",area:"东城区",desc:"展示自然科学知识的重要场馆。",address:"北京市东城区东长安街48号",time:"1959年建成",protectLevel:"国家一级博物馆",lng:116.4017,lat:39.925},
+    {id:567,name:"东城区中国妇女儿童博物馆",type:"设施",area:"东城区",desc:"展示中国妇女儿童发展历史的专业博物馆。",address:"北京市东城区东四南大街80号",time:"2010年建成",protectLevel:"国家一级博物馆",lng:116.4272,lat:39.9258},
+    {id:568,name:"东城区中国地质博物馆",type:"设施",area:"东城区",desc:"亚洲最大的地质学专业博物馆。",address:"北京市东城区北新桥55号",time:"1916年建成",protectLevel:"国家一级博物馆",lng:116.4219,lat:39.9351},
+    {id:569,name:"东城区中国美术馆西馆",type:"设施",area:"东城区",desc:"拓展中国美术馆展示空间的西馆。",address:"北京市东城区五四大街123号",time:"2020年建成",protectLevel:"国家级美术馆",lng:116.4258,lat:39.9276},
+    {id:570,name:"东城区北京人艺戏剧博物馆",type:"设施",area:"东城区",desc:"展示北京人艺历史的专业博物馆。",address:"北京市东城区朝阳门内大街22号",time:"2004年建成",protectLevel:"国家一级博物馆",lng:116.4161,lat:39.9299},
+    {id:571,name:"东城区中国书店雁翅楼店",type:"设施",area:"东城区",desc:"经营古籍善本的文化书店。",address:"北京市东城区天安门广场61号",time:"1952年建成",protectLevel:"北京市文化地标",lng:116.4027,lat:39.9117},
+    {id:572,name:"东城区涵芬楼书店",type:"设施",area:"东城区",desc:"商务印书馆旗下的文化书店。",address:"北京市东城区北新桥140号",time:"1912年建成",protectLevel:"北京市文化地标",lng:116.4148,lat:39.9175},
+    {id:573,name:"东城区三联韬奋书店",type:"设施",area:"东城区",desc:"知名文化品牌书店，倡导阅读文化。",address:"北京市东城区前门大街180号",time:"1996年建成",protectLevel:"北京市文化地标",lng:116.4182,lat:39.913},
+    {id:574,name:"东城区中国书店灯市口店",type:"设施",area:"东城区",desc:"经营古旧书刊的特色书店。",address:"北京市东城区王府井大街153号",time:"1958年建成",protectLevel:"北京市文化地标",lng:116.4039,lat:39.9114},
+    {id:575,name:"东城区东城区革命烈士名册",type:"档案",area:"东城区",desc:"记录东城区籍革命烈士的珍贵名册。",address:"北京市东城区天安门广场171号",time:"1921-1949年",protectLevel:"珍贵历史档案",lng:116.4179,lat:39.9302},
+    {id:576,name:"东城区新中国成立后建设档案",type:"档案",area:"东城区",desc:"东城区新中国成立后各项建设的珍贵记录。",address:"北京市东城区东四北大街185号",time:"1949年后",protectLevel:"珍贵历史档案",lng:116.4141,lat:39.9301},
+    {id:577,name:"东城区改革开放时期发展档案",type:"档案",area:"东城区",desc:"东城区改革开放以来的发展历程记录。",address:"北京市东城区东四南大街152号",time:"1978年后",protectLevel:"珍贵历史档案",lng:116.4029,lat:39.934},
+    {id:578,name:"东城区社会主义改造档案",type:"档案",area:"东城区",desc:"东城区社会主义改造时期的珍贵史料。",address:"北京市东城区东直门内大街107号",time:"1953-1956年",protectLevel:"珍贵历史档案",lng:116.4206,lat:39.9338},
+    {id:579,name:"东城区抗美援朝运动档案",type:"档案",area:"东城区",desc:"东城区抗美援朝运动的珍贵记录。",address:"北京市东城区东四十条27号",time:"1950-1953年",protectLevel:"珍贵历史档案",lng:116.4192,lat:39.9163},
+    {id:580,name:"东城区土地改革运动档案",type:"档案",area:"东城区",desc:"东城区土地改革运动的历史记录。",address:"北京市东城区崇文门内大街25号",time:"1950-1952年",protectLevel:"珍贵历史档案",lng:116.4228,lat:39.9281},
+    {id:581,name:"东城区《北京大学日刊》原刊",type:"文献",area:"东城区",desc:"北京大学校刊的珍贵原件。",address:"北京市东城区北新桥92号",time:"1917年",protectLevel:"珍贵文献",lng:116.4201,lat:39.9343},
+    {id:582,name:"东城区《向导》周报原刊",type:"文献",area:"东城区",desc:"中共中央早期机关报的珍贵原件。",address:"北京市东城区天安门广场113号",time:"1922年",protectLevel:"珍贵文献",lng:116.4058,lat:39.9121},
+    {id:583,name:"东城区《中国青年》杂志原刊",type:"文献",area:"东城区",desc:"共青团中央早期刊物。",address:"北京市东城区建国门内大街111号",time:"1923年",protectLevel:"珍贵文献",lng:116.402,lat:39.9197},
+    {id:584,name:"东城区《晨报副刊》合订本",type:"文献",area:"东城区",desc:"五四时期重要副刊的珍贵合订本。",address:"北京市东城区安定门内大街192号",time:"1919年",protectLevel:"珍贵文献",lng:116.4273,lat:39.9324},
+    {id:585,name:"东城区《觉悟》杂志原刊",type:"文献",area:"东城区",desc:"天津觉悟社创办的革命刊物。",address:"北京市东城区景山前街40号",time:"1920年",protectLevel:"珍贵文献",lng:116.4228,lat:39.9293},
+    {id:586,name:"东城区《先驱》杂志原刊",type:"文献",area:"东城区",desc:"中国社会主义青年团早期刊物。",address:"北京市东城区东长安街171号",time:"1922年",protectLevel:"珍贵文献",lng:116.419,lat:39.9376},
+    {id:587,name:"东城区《响导》周报影印本",type:"文献",area:"东城区",desc:"《响导》周报的珍贵影印本。",address:"北京市东城区安定门内大街15号",time:"1922年",protectLevel:"珍贵文献",lng:116.4238,lat:39.9181},
+    {id:588,name:"东城区《中国工人》杂志原刊",type:"文献",area:"东城区",desc:"早期工人运动的宣传刊物。",address:"北京市东城区安定门内大街91号",time:"1924年",protectLevel:"珍贵文献",lng:116.4196,lat:39.9207},
+    {id:589,name:"东城区蔡元培《以美育代宗教说》手稿",type:"手稿",area:"东城区",desc:"蔡元培美育思想的重要文章手稿。",address:"北京市东城区东四南大街30号",time:"1917年",protectLevel:"珍贵文物",lng:116.4052,lat:39.9202},
+    {id:590,name:"东城区刘半农《教我如何不想她》手稿",type:"手稿",area:"东城区",desc:"著名白话诗的手稿。",address:"北京市东城区东四十条182号",time:"1920年",protectLevel:"珍贵文物",lng:116.4086,lat:39.9144},
+    {id:591,name:"东城区沈尹默《月夜》手稿",type:"手稿",area:"东城区",desc:"新诗运动早期代表作手稿。",address:"北京市东城区建国门内大街82号",time:"1917年",protectLevel:"珍贵文物",lng:116.4211,lat:39.9123},
+    {id:592,name:"东城区朱自清《匆匆》手稿",type:"手稿",area:"东城区",desc:"经典散文的手稿原件。",address:"北京市东城区东长安街31号",time:"1922年",protectLevel:"珍贵文物",lng:116.4005,lat:39.9398},
+    {id:593,name:"东城区冰心《繁星》手稿",type:"手稿",area:"东城区",desc:"冰心早期诗歌作品手稿。",address:"北京市东城区王府井大街68号",time:"1923年",protectLevel:"珍贵文物",lng:116.4262,lat:39.94},
+    {id:594,name:"东城区徐志摩《再别康桥》手稿",type:"手稿",area:"东城区",desc:"著名新月派诗歌的手稿。",address:"北京市东城区安定门内大街132号",time:"1928年",protectLevel:"珍贵文物",lng:116.4013,lat:39.9333},
+    {id:595,name:"东城区五四运动纪念旗帜",type:"实物",area:"东城区",desc:"五四运动时期使用的纪念旗帜。",address:"北京市东城区王府井大街156号",time:"1919年",protectLevel:"珍贵文物",lng:116.4096,lat:39.9388},
+    {id:596,name:"东城区新文化运动期刊原刊",type:"实物",area:"东城区",desc:"新文化运动时期的珍贵期刊原件。",address:"北京市东城区景山前街172号",time:"1915年",protectLevel:"珍贵文物",lng:116.4177,lat:39.9258},
+    {id:597,name:"东城区北京大学红楼砖石",type:"实物",area:"东城区",desc:"北大红楼建筑的珍贵砖石。",address:"北京市东城区建国门内大街38号",time:"1918年",protectLevel:"珍贵文物",lng:116.4183,lat:39.9117},
+    {id:598,name:"东城区五四运动学生袖标",type:"实物",area:"东城区",desc:"五四运动学生游行时佩戴的袖标。",address:"北京市东城区东长安街133号",time:"1919年",protectLevel:"珍贵文物",lng:116.4208,lat:39.9187},
+    {id:599,name:"东城区进步书社会员证",type:"实物",area:"东城区",desc:"进步书社会员的珍贵会员证。",address:"北京市东城区天安门广场63号",time:"1925年",protectLevel:"珍贵文物",lng:116.4023,lat:39.9249},
+    {id:600,name:"东城区地下党秘密文件袋",type:"实物",area:"东城区",desc:"地下党传递情报使用的秘密文件袋。",address:"北京市东城区东直门内大街72号",time:"1945年",protectLevel:"珍贵文物",lng:116.4257,lat:39.9243},
+    {id:601,name:"东城区解放战争时期电台零件",type:"实物",area:"东城区",desc:"地下党使用的秘密电台零件。",address:"北京市东城区北新桥34号",time:"1948年",protectLevel:"珍贵文物",lng:116.4245,lat:39.932},
+    {id:602,name:"东城区新中国成立纪念邮票",type:"实物",area:"东城区",desc:"庆祝新中国成立的珍贵纪念邮票。",address:"北京市东城区北新桥61号",time:"1949年",protectLevel:"珍贵文物",lng:116.4244,lat:39.9233},
+    {id:603,name:"东城区东四十三条进步刊物编辑处",type:"旧址",area:"东城区",desc:"进步刊物的秘密编辑地点。",address:"北京市东城区地安门东大街68号",time:"1932年",protectLevel:"区级文物保护单位",lng:116.4108,lat:39.9222},
+    {id:604,name:"东城区东四十四条工人俱乐部",type:"旧址",area:"东城区",desc:"工人阶级文化活动的重要场所。",address:"北京市东城区东直门内大街50号",time:"1924年",protectLevel:"区级文物保护单位",lng:116.4012,lat:39.9207},
+    {id:605,name:"东城区朝阳门内进步学生联络点",type:"旧址",area:"东城区",desc:"进步学生秘密联络的场所。",address:"北京市东城区崇文门内大街37号",time:"1936年",protectLevel:"区级文物保护单位",lng:116.4258,lat:39.9363},
+    {id:606,name:"东城区东直门南小街革命据点",type:"旧址",area:"东城区",desc:"隐蔽的革命活动据点。",address:"北京市东城区景山前街103号",time:"1943年",protectLevel:"区级文物保护单位",lng:116.4152,lat:39.9334},
+    {id:607,name:"东城区北新桥头条进步团体活动室",type:"旧址",area:"东城区",desc:"进步团体秘密活动的场所。",address:"北京市东城区东直门内大街183号",time:"1933年",protectLevel:"区级文物保护单位",lng:116.4006,lat:39.9317},
+    {id:608,name:"东城区和平里进步学生宿舍",type:"旧址",area:"东城区",desc:"进步学生秘密居住的宿舍。",address:"北京市东城区东直门内大街155号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.4117,lat:39.9309},
+    {id:609,name:"东城区交道口南大街工人夜校",type:"旧址",area:"东城区",desc:"为工人提供教育的夜校。",address:"北京市东城区东四北大街125号",time:"1923年",protectLevel:"区级文物保护单位",lng:116.4159,lat:39.9349},
+    {id:610,name:"东城区安定门外革命宣传点",type:"旧址",area:"东城区",desc:"秘密进行革命宣传的据点。",address:"北京市东城区安定门内大街72号",time:"1938年",protectLevel:"区级文物保护单位",lng:116.4264,lat:39.9374},
+    {id:611,name:"东城区地安门内进步报刊发行站",type:"旧址",area:"东城区",desc:"进步报刊的秘密发行站。",address:"北京市东城区雍和宫大街20号",time:"1930年",protectLevel:"区级文物保护单位",lng:116.4166,lat:39.9279},
+    {id:612,name:"东城区景山前街进步书店",type:"旧址",area:"东城区",desc:"销售进步书籍的书店。",address:"北京市东城区东四南大街173号",time:"1927年",protectLevel:"区级文物保护单位",lng:116.407,lat:39.9399},
+    {id:613,name:"东城区美术馆后街革命联络站",type:"旧址",area:"东城区",desc:"解放战争时期的秘密联络站。",address:"北京市东城区崇文门内大街21号",time:"1946年",protectLevel:"区级文物保护单位",lng:116.4101,lat:39.9244},
+    {id:614,name:"东城区五四大街进步学生社团",type:"旧址",area:"东城区",desc:"进步学生组织的活动地点。",address:"北京市东城区东直门内大街162号",time:"1934年",protectLevel:"区级文物保护单位",lng:116.4139,lat:39.9356},
+    {id:615,name:"东城区东四北大街进步书店旧址",type:"旧址",area:"东城区",desc:"进步知识分子经营的书店。",address:"北京市东城区朝阳门内大街103号",time:"1929年",protectLevel:"区级文物保护单位",lng:116.4019,lat:39.9214},
+    {id:616,name:"东城区南锣鼓巷进步青年聚会点",type:"旧址",area:"东城区",desc:"进步青年秘密聚会的场所。",address:"北京市东城区前门大街138号",time:"1932年",protectLevel:"区级文物保护单位",lng:116.4194,lat:39.9336},
+    {id:617,name:"西城区文华胡同陈独秀旧居",type:"旧址",area:"西城区",desc:"陈独秀在北京的重要居所，新文化运动的策源地之一。",address:"北京市西城区西单北大街131号",time:"1917年",protectLevel:"全国重点文物保护单位",lng:116.3803,lat:39.9113},
+    {id:618,name:"西城区刘少奇旧居",type:"旧址",area:"西城区",desc:"刘少奇同志在北京从事革命活动的重要住所。",address:"北京市西城区展览路195号",time:"1930年代",protectLevel:"北京市文物保护单位",lng:116.3589,lat:39.9045},
+    {id:619,name:"西城区周恩来旧居",type:"旧址",area:"西城区",desc:"周恩来同志在北京从事地下工作时的住所。",address:"北京市西城区太平桥大街121号",time:"1940年代",protectLevel:"北京市文物保护单位",lng:116.3847,lat:39.9203},
+    {id:620,name:"西城区朱德旧居",type:"旧址",area:"西城区",desc:"朱德同志在北京的住所。",address:"北京市西城区阜成门内大街25号",time:"1949年后",protectLevel:"北京市文物保护单位",lng:116.3706,lat:39.9287},
+    {id:621,name:"西城区彭真旧居",type:"旧址",area:"西城区",desc:"彭真同志在北京从事革命活动的住所。",address:"北京市西城区德胜门内大街1号",time:"1945年",protectLevel:"区级文物保护单位",lng:116.3874,lat:39.9181},
+    {id:622,name:"西城区新街口外大街进步书店",type:"旧址",area:"西城区",desc:"进步知识分子创办的书店，销售革命书籍。",address:"北京市西城区月坛南街42号",time:"1932年",protectLevel:"区级文物保护单位",lng:116.3557,lat:39.9064},
+    {id:623,name:"西城区德胜门内地下党联络站",type:"旧址",area:"西城区",desc:"隐蔽在胡同深处的地下党联络站。",address:"北京市西城区西直门内大街177号",time:"1943年",protectLevel:"区级文物保护单位",lng:116.3521,lat:39.9231},
+    {id:624,name:"西城区什刹海进步青年聚会处",type:"旧址",area:"西城区",desc:"进步青年秘密聚会交流的场所。",address:"北京市西城区西单北大街171号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.3876,lat:39.9253},
+    {id:625,name:"西城区后海进步学生社团",type:"旧址",area:"西城区",desc:"进步学生组织的活动地点。",address:"北京市西城区西单北大街122号",time:"1933年",protectLevel:"区级文物保护单位",lng:116.3775,lat:39.9179},
+    {id:626,name:"西城区北海附近革命宣传点",type:"旧址",area:"西城区",desc:"利用公园人多进行革命宣传的据点。",address:"北京市西城区鼓楼西大街152号",time:"1937年",protectLevel:"区级文物保护单位",lng:116.39,lat:39.908},
+    {id:627,name:"西城区西单学生运动遗址",type:"遗址",area:"西城区",desc:"多次学生运动的重要活动区域。",address:"北京市西城区月坛南街111号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.3833,lat:39.9239},
+    {id:628,name:"西城区西长安街爱国运动遗址",type:"遗址",area:"西城区",desc:"爱国运动的重要活动路线。",address:"北京市西城区金融街64号",time:"1946年",protectLevel:"区级文物保护单位",lng:116.3727,lat:39.9121},
+    {id:629,name:"西城区和平门学生请愿遗址",type:"遗址",area:"西城区",desc:"学生请愿活动的聚集地。",address:"北京市西城区月坛南街103号",time:"1931年",protectLevel:"区级文物保护单位",lng:116.3627,lat:39.9003},
+    {id:630,name:"西城区国家图书馆",type:"设施",area:"西城区",desc:"亚洲最大的图书馆，收藏珍贵古籍善本。",address:"北京市西城区月坛南街94号",time:"1909年建成",protectLevel:"国家一级博物馆",lng:116.371,lat:39.9272},
+    {id:631,name:"西城区北京天文馆",type:"设施",area:"西城区",desc:"中国第一座天文馆，传播天文科学知识。",address:"北京市西城区西长安街175号",time:"1957年建成",protectLevel:"国家一级博物馆",lng:116.3631,lat:39.9233},
+    {id:632,name:"西城区中国地质博物馆",type:"设施",area:"西城区",desc:"亚洲最大的地质学专业博物馆。",address:"北京市西城区金融街190号",time:"1916年建成",protectLevel:"国家一级博物馆",lng:116.3565,lat:39.9249},
+    {id:633,name:"西城区中国古动物馆",type:"设施",area:"西城区",desc:"展示古生物化石的专业博物馆。",address:"北京市西城区鼓楼西大街160号",time:"1994年建成",protectLevel:"国家一级博物馆",lng:116.385,lat:39.9125},
+    {id:634,name:"西城区北京鲁迅博物馆",type:"设施",area:"西城区",desc:"收藏鲁迅文物、手稿的专题博物馆。",address:"北京市西城区展览路176号",time:"1956年建成",protectLevel:"国家一级博物馆",lng:116.3779,lat:39.9243},
+    {id:635,name:"西城区北京梅兰芳纪念馆",type:"设施",area:"西城区",desc:"展示京剧艺术大师梅兰芳生平的纪念馆。",address:"北京市西城区金融街14号",time:"1987年建成",protectLevel:"国家一级博物馆",lng:116.3897,lat:39.914},
+    {id:636,name:"西城区徐悲鸿纪念馆",type:"设施",area:"西城区",desc:"展示徐悲鸿艺术作品的专题纪念馆。",address:"北京市西城区德胜门外大街14号",time:"1983年建成",protectLevel:"国家一级博物馆",lng:116.375,lat:39.9235},
+    {id:637,name:"西城区齐白石旧居纪念馆",type:"设施",area:"西城区",desc:"展示齐白石艺术生涯的纪念馆。",address:"北京市西城区鼓楼西大街128号",time:"2012年建成",protectLevel:"国家一级博物馆",lng:116.3689,lat:39.9104},
+    {id:638,name:"西城区郭沫若纪念馆",type:"设施",area:"西城区",desc:"展示郭沫若生平和成就的纪念馆。",address:"北京市西城区金融街114号",time:"1988年建成",protectLevel:"国家一级博物馆",lng:116.3738,lat:39.9012},
+    {id:639,name:"西城区宋庆龄故居",type:"设施",area:"西城区",desc:"宋庆龄在北京的住所和活动场所。",address:"北京市西城区金融街188号",time:"1982年建成",protectLevel:"全国重点文物保护单位",lng:116.3809,lat:39.9007},
+    {id:640,name:"西城区北平和平解放谈判档案",type:"档案",area:"西城区",desc:"记录北平和平解放谈判过程的珍贵档案。",address:"北京市西城区展览路25号",time:"1948-1949年",protectLevel:"珍贵历史档案",lng:116.3539,lat:39.9114},
+    {id:641,name:"西城区一二·九运动珍贵史料",type:"档案",area:"西城区",desc:"记录一二·九运动西城地区活动的珍贵史料。",address:"北京市西城区西长安街180号",time:"1935年",protectLevel:"珍贵历史档案",lng:116.3872,lat:39.9042},
+    {id:642,name:"西城区抗日战争时期地下党档案",type:"档案",area:"西城区",desc:"西城地区地下党抗日活动的珍贵记录。",address:"北京市西城区复兴门内大街129号",time:"1937-1945年",protectLevel:"珍贵历史档案",lng:116.3513,lat:39.9265},
+    {id:643,name:"西城区解放战争时期学运档案",type:"档案",area:"西城区",desc:"西城地区学生运动的珍贵史料。",address:"北京市西城区德胜门外大街44号",time:"1946-1949年",protectLevel:"珍贵历史档案",lng:116.3794,lat:39.918},
+    {id:644,name:"西城区新中国成立初期建设档案",type:"档案",area:"西城区",desc:"西城区新中国成立初期各项建设的记录。",address:"北京市西城区德胜门外大街55号",time:"1949-1956年",protectLevel:"珍贵历史档案",lng:116.3722,lat:39.905},
+    {id:645,name:"西城区社会主义改造珍贵史料",type:"档案",area:"西城区",desc:"西城区社会主义改造时期的珍贵档案。",address:"北京市西城区太平桥大街86号",time:"1953-1956年",protectLevel:"珍贵历史档案",lng:116.3814,lat:39.924},
+    {id:646,name:"西城区改革开放发展历程档案",type:"档案",area:"西城区",desc:"西城区改革开放以来的发展记录。",address:"北京市西城区西单北大街110号",time:"1978年后",protectLevel:"珍贵历史档案",lng:116.3849,lat:39.923},
+    {id:647,name:"西城区《京报》合订本",type:"文献",area:"西城区",desc:"邵飘萍主办的《京报》珍贵合订本。",address:"北京市西城区复兴门内大街84号",time:"1918-1926年",protectLevel:"珍贵文献",lng:116.3649,lat:39.9154},
+    {id:648,name:"西城区《晨报》副刊原刊",type:"文献",area:"西城区",desc:"五四时期重要副刊的珍贵原件。",address:"北京市西城区新街口外大街41号",time:"1919年",protectLevel:"珍贵文献",lng:116.3618,lat:39.9178},
+    {id:649,name:"西城区《世界日报》合订本",type:"文献",area:"西城区",desc:"成舍我创办的《世界日报》合订本。",address:"北京市西城区鼓楼西大街200号",time:"1925-1937年",protectLevel:"珍贵文献",lng:116.384,lat:39.9182},
+    {id:650,name:"西城区《实报》原刊",type:"文献",area:"西城区",desc:"北平时期重要报纸的珍贵原件。",address:"北京市西城区新街口外大街142号",time:"1930年代",protectLevel:"珍贵文献",lng:116.3544,lat:39.9227},
+    {id:651,name:"西城区《华北日报》原刊",type:"文献",area:"西城区",desc:"华北地区重要报纸的珍贵原件。",address:"北京市西城区新街口外大街118号",time:"1945-1949年",protectLevel:"珍贵文献",lng:116.3748,lat:39.9061},
+    {id:652,name:"西城区老舍《四世同堂》手稿",type:"手稿",area:"西城区",desc:"老舍长篇小说《四世同堂》的部分手稿。",address:"北京市西城区地安门西大街119号",time:"1944年",protectLevel:"国家一级文物",lng:116.3649,lat:39.9053},
+    {id:653,name:"西城区曹禺《雷雨》手稿",type:"手稿",area:"西城区",desc:"曹禺话剧处女作《雷雨》的手稿。",address:"北京市西城区西长安街34号",time:"1933年",protectLevel:"国家一级文物",lng:116.351,lat:39.9104},
+    {id:654,name:"西城区巴金《家》手稿",type:"手稿",area:"西城区",desc:"巴金《激流三部曲》第一部的手稿。",address:"北京市西城区地安门西大街138号",time:"1931年",protectLevel:"珍贵文物",lng:116.3756,lat:39.9222},
+    {id:655,name:"西城区沈从文《边城》手稿",type:"手稿",area:"西城区",desc:"沈从文代表作《边城》的手稿。",address:"北京市西城区鼓楼西大街199号",time:"1934年",protectLevel:"珍贵文物",lng:116.3854,lat:39.9047},
+    {id:656,name:"西城区张恨水《啼笑因缘》手稿",type:"手稿",area:"西城区",desc:"张恨水通俗小说代表作的手稿。",address:"北京市西城区鼓楼西大街118号",time:"1930年",protectLevel:"珍贵文物",lng:116.3818,lat:39.904},
+    {id:657,name:"西城区林语堂《京华烟云》手稿",type:"手稿",area:"西城区",desc:"林语英文小说的手稿。",address:"北京市西城区西单北大街41号",time:"1938年",protectLevel:"珍贵文物",lng:116.3596,lat:39.9238},
+    {id:658,name:"西城区京报馆印刷设备",type:"实物",area:"西城区",desc:"《京报》使用的印刷设备原件。",address:"北京市西城区西单北大街78号",time:"1918年",protectLevel:"珍贵文物",lng:116.3561,lat:39.9091},
+    {id:659,name:"西城区五四运动宣传单原件",type:"实物",area:"西城区",desc:"五四运动时期在西城地区散发的宣传单。",address:"北京市西城区新街口外大街137号",time:"1919年",protectLevel:"珍贵文物",lng:116.3552,lat:39.9299},
+    {id:660,name:"西城区北平解放纪念品",type:"实物",area:"西城区",desc:"北平和平解放时期的珍贵纪念品。",address:"北京市西城区德胜门内大街46号",time:"1949年",protectLevel:"珍贵文物",lng:116.3677,lat:39.9155},
+    {id:661,name:"西城区地下党秘密电台",type:"实物",area:"西城区",desc:"解放战争时期地下党使用的秘密电台。",address:"北京市西城区复兴门内大街162号",time:"1947年",protectLevel:"珍贵文物",lng:116.3538,lat:39.9066},
+    {id:662,name:"西城区新中国成立庆祝横幅",type:"实物",area:"西城区",desc:"庆祝北平解放的珍贵横幅。",address:"北京市西城区鼓楼西大街42号",time:"1949年",protectLevel:"珍贵文物",lng:116.3611,lat:39.9052},
+    {id:663,name:"西城区西四北大街进步社团",type:"旧址",area:"西城区",desc:"进步社团秘密活动的场所。",address:"北京市西城区新街口外大街137号",time:"1934年",protectLevel:"区级文物保护单位",lng:116.3863,lat:39.9131},
+    {id:664,name:"西城区西安门大街革命联络点",type:"旧址",area:"西城区",desc:"隐蔽的革命联络点位。",address:"北京市西城区新街口外大街101号",time:"1944年",protectLevel:"区级文物保护单位",lng:116.3834,lat:39.9247},
+    {id:665,name:"西城区北海公园进步学生聚会处",type:"旧址",area:"西城区",desc:"进步学生秘密聚会的场所。",address:"北京市西城区地安门西大街87号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.3884,lat:39.9264},
+    {id:666,name:"西城区西直门内大街进步书店",type:"旧址",area:"西城区",desc:"销售进步书籍的书店。",address:"北京市西城区金融街165号",time:"1931年",protectLevel:"区级文物保护单位",lng:116.3642,lat:39.9223},
+    {id:667,name:"西城区阜成门内工人俱乐部",type:"旧址",area:"西城区",desc:"工人阶级文化活动的重要场所。",address:"北京市西城区金融街126号",time:"1925年",protectLevel:"区级文物保护单位",lng:116.3618,lat:39.9279},
+    {id:668,name:"西城区月坛附近抗日宣传点",type:"旧址",area:"西城区",desc:"抗日战争时期的秘密宣传据点。",address:"北京市西城区太平桥大街79号",time:"1938年",protectLevel:"区级文物保护单位",lng:116.3675,lat:39.9011},
+    {id:669,name:"西城区展览路进步学生宿舍",type:"旧址",area:"西城区",desc:"进步学生秘密居住的宿舍。",address:"北京市西城区西单北大街34号",time:"1936年",protectLevel:"区级文物保护单位",lng:116.3882,lat:39.9211},
+    {id:670,name:"西城区德胜门外革命据点",type:"旧址",area:"西城区",desc:"隐蔽的革命活动据点。",address:"北京市西城区复兴门内大街190号",time:"1942年",protectLevel:"区级文物保护单位",lng:116.3824,lat:39.922},
+    {id:671,name:"西城区安德路进步报刊发行处",type:"旧址",area:"西城区",desc:"进步报刊的秘密发行地点。",address:"北京市西城区西直门内大街120号",time:"1933年",protectLevel:"区级文物保护单位",lng:116.3575,lat:39.9193},
+    {id:672,name:"西城区六铺炕地下党联络站",type:"旧址",area:"西城区",desc:"解放战争时期的重要联络站。",address:"北京市西城区展览路162号",time:"1946年",protectLevel:"区级文物保护单位",lng:116.3796,lat:39.9176},
+    {id:673,name:"西城区鼓楼大街进步青年聚会点",type:"旧址",area:"西城区",desc:"进步青年秘密聚会交流的场所。",address:"北京市西城区德胜门外大街137号",time:"1934年",protectLevel:"区级文物保护单位",lng:116.3563,lat:39.93},
+    {id:674,name:"西城区地安门外进步书店旧址",type:"旧址",area:"西城区",desc:"进步知识分子经营的书店。",address:"北京市西城区太平桥大街34号",time:"1929年",protectLevel:"区级文物保护单位",lng:116.3788,lat:39.9064},
+    {id:675,name:"西城区厂桥进步学生社团活动室",type:"旧址",area:"西城区",desc:"进步学生组织的活动地点。",address:"北京市西城区太平桥大街182号",time:"1935年",protectLevel:"区级文物保护单位",lng:116.3633,lat:39.9049},
+    {id:676,name:"西城区护国寺街革命联络点",type:"旧址",area:"西城区",desc:"隐蔽的革命联络点位。",address:"北京市西城区地安门西大街143号",time:"1943年",protectLevel:"区级文物保护单位",lng:116.3517,lat:39.9207},
+    {id:677,name:"西城区北京艺术博物馆",type:"设施",area:"西城区",desc:"展示北京地区艺术发展历史的博物馆。",address:"北京市西城区德胜门外大街89号",time:"1987年建成",protectLevel:"国家一级博物馆",lng:116.3781,lat:39.9196},
+    {id:678,name:"西城区中国钱币博物馆",type:"设施",area:"西城区",desc:"展示中国货币发展历史的专业博物馆。",address:"北京市西城区德胜门外大街121号",time:"1992年建成",protectLevel:"国家一级博物馆",lng:116.385,lat:39.9292},
+    {id:679,name:"西城区北京古代建筑博物馆",type:"设施",area:"西城区",desc:"展示中国古代建筑技术的专题博物馆。",address:"北京市西城区西长安街107号",time:"1991年建成",protectLevel:"国家一级博物馆",lng:116.3626,lat:39.9241},
+    {id:680,name:"西城区中国消防博物馆",type:"设施",area:"西城区",desc:"展示中国消防发展历史的专业博物馆。",address:"北京市西城区前门西大街41号",time:"2010年建成",protectLevel:"国家一级博物馆",lng:116.3874,lat:39.9204},
+    {id:681,name:"西城区北京民族文化宫",type:"设施",area:"西城区",desc:"展示中国各民族文化的综合性场馆。",address:"北京市西城区月坛南街47号",time:"1959年建成",protectLevel:"北京市文化地标",lng:116.3556,lat:39.9},
+    {id:682,name:"西城区中国国家画院美术馆",type:"设施",area:"西城区",desc:"展示中国国家画院艺术家作品的美术馆。",address:"北京市西城区太平桥大街62号",time:"2005年建成",protectLevel:"国家一级博物馆",lng:116.3673,lat:39.9125},
+    {id:683,name:"西城区五四运动西城地区史料",type:"档案",area:"西城区",desc:"记录五四运动西城地区活动的珍贵史料。",address:"北京市西城区西单北大街192号",time:"1919年",protectLevel:"珍贵历史档案",lng:116.355,lat:39.9101},
+    {id:684,name:"西城区新文化运动文献汇编",type:"档案",area:"西城区",desc:"收录新文化运动相关珍贵文献的汇编。",address:"北京市西城区前门西大街125号",time:"1915-1923年",protectLevel:"珍贵历史档案",lng:116.3695,lat:39.9166},
+    {id:685,name:"西城区工人运动档案",type:"档案",area:"西城区",desc:"西城区工人运动的珍贵记录。",address:"北京市西城区金融街149号",time:"1921-1927年",protectLevel:"珍贵历史档案",lng:116.3561,lat:39.929},
+    {id:686,name:"西城区抗日救亡运动档案",type:"档案",area:"西城区",desc:"西城区抗日救亡运动的珍贵史料。",address:"北京市西城区复兴门内大街74号",time:"1931-1937年",protectLevel:"珍贵历史档案",lng:116.3746,lat:39.9095},
+    {id:687,name:"西城区解放后城市建设档案",type:"档案",area:"西城区",desc:"西城区解放后城市建设的珍贵记录。",address:"北京市西城区德胜门内大街94号",time:"1949-1966年",protectLevel:"珍贵历史档案",lng:116.3519,lat:39.9097},
+    {id:688,name:"西城区《萌芽》杂志原刊",type:"文献",area:"西城区",desc:"左联创办的文学杂志原件。",address:"北京市西城区西长安街143号",time:"1930年",protectLevel:"珍贵文献",lng:116.3587,lat:39.9279},
+    {id:689,name:"西城区《文学月报》原刊",type:"文献",area:"西城区",desc:"左翼文学运动的重要刊物。",address:"北京市西城区地安门西大街88号",time:"1932年",protectLevel:"珍贵文献",lng:116.3629,lat:39.9021},
+    {id:690,name:"西城区《读书生活》杂志原刊",type:"文献",area:"西城区",desc:"进步知识分子创办的读书刊物。",address:"北京市西城区金融街179号",time:"1934年",protectLevel:"珍贵文献",lng:116.372,lat:39.92},
+    {id:691,name:"西城区《大众生活》杂志原刊",type:"文献",area:"西城区",desc:"邹韬奋主编的进步刊物。",address:"北京市西城区月坛南街116号",time:"1935年",protectLevel:"珍贵文献",lng:116.3535,lat:39.9004},
+    {id:692,name:"西城区《全民抗战》杂志原刊",type:"文献",area:"西城区",desc:"抗日战争时期的重要刊物。",address:"北京市西城区太平桥大街152号",time:"1938年",protectLevel:"珍贵文献",lng:116.3697,lat:39.9046},
+    {id:693,name:"西城区《民主》周刊原刊",type:"文献",area:"西城区",desc:"抗战胜利后进步人士创办的刊物。",address:"北京市西城区复兴门内大街62号",time:"1945年",protectLevel:"珍贵文献",lng:116.3577,lat:39.9189},
+    {id:694,name:"西城区萧红《呼兰河传》手稿",type:"手稿",area:"西城区",desc:"萧红代表作《呼兰河传》的手稿。",address:"北京市西城区德胜门内大街77号",time:"1938年",protectLevel:"珍贵文物",lng:116.3883,lat:39.9212},
+    {id:695,name:"西城区丁玲《太阳照在桑干河上》手稿",type:"手稿",area:"西城区",desc:"丁玲获斯大林文学奖作品的手稿。",address:"北京市西城区西长安街188号",time:"1948年",protectLevel:"珍贵文物",lng:116.3565,lat:39.9289},
+    {id:696,name:"西城区赵树理《小二黑结婚》手稿",type:"手稿",area:"西城区",desc:"赵树理代表作的手稿。",address:"北京市西城区鼓楼西大街73号",time:"1943年",protectLevel:"珍贵文物",lng:116.386,lat:39.9063},
+    {id:697,name:"西城区周立波《暴风骤雨》手稿",type:"手稿",area:"西城区",desc:"周立波获斯大林文学奖作品的手稿。",address:"北京市西城区德胜门内大街118号",time:"1948年",protectLevel:"珍贵文物",lng:116.3688,lat:39.9296},
+    {id:698,name:"西城区《京报》编辑部桌椅",type:"实物",area:"西城区",desc:"邵飘萍《京报》编辑部使用的桌椅。",address:"北京市西城区阜成门内大街120号",time:"1918年",protectLevel:"珍贵文物",lng:116.3552,lat:39.9108},
+    {id:699,name:"西城区五四运动旗帜原件",type:"实物",area:"西城区",desc:"五四运动时期使用的旗帜原件。",address:"北京市西城区阜成门内大街143号",time:"1919年",protectLevel:"珍贵文物",lng:116.3646,lat:39.9179},
+    {id:700,name:"西城区进步学生笔记本",type:"实物",area:"西城区",desc:"进步学生记录革命思想的笔记本。",address:"北京市西城区前门西大街99号",time:"1935年",protectLevel:"珍贵文物",lng:116.3522,lat:39.9288},
+    {id:701,name:"西城区地下党秘密文件",type:"实物",area:"西城区",desc:"解放战争时期地下党的秘密文件。",address:"北京市西城区西直门内大街164号",time:"1947年",protectLevel:"珍贵文物",lng:116.3881,lat:39.9294},
+    {id:702,name:"西城区北平解放庆祝标语",type:"实物",area:"西城区",desc:"庆祝北平解放的珍贵标语。",address:"北京市西城区地安门西大街114号",time:"1949年",protectLevel:"珍贵文物",lng:116.3715,lat:39.9035},
+    {id:703,name:"西城区新中国成立纪念章",type:"实物",area:"西城区",desc:"庆祝新中国成立的纪念章。",address:"北京市西城区西单北大街171号",time:"1949年",protectLevel:"珍贵文物",lng:116.3792,lat:39.9221}
+];
+
+        // 当前状态
+        let selectedTypes = [];
+        let currentArea = "all";
+        let searchKeyword = "";
+        let selectedId = null;
+        let map = null;
+        let markers = [];
+
+        // 初始化
+        document.addEventListener("DOMContentLoaded", function() {
+            bindEvents();
+            renderPlaceList();
+            // 默认选中第一个
+            if (resourceData.length > 0) {
+                selectPlace(resourceData[0].id);
+            }
+        });
+
+        // 绑定事件
+        function bindEvents() {
+            // 复选框事件
+            document.querySelectorAll('input[name="type"]').forEach(cb => {
+                cb.addEventListener("change", handleCheckboxChange);
+            });
+
+            // 搜索按钮
+            document.getElementById("searchBtn").addEventListener("click", function() {
+                searchKeyword = document.getElementById("searchInput").value.trim();
+                renderPlaceList();
+            });
+
+            // 回车搜索
+            document.getElementById("searchInput").addEventListener("keydown", function(e) {
+                if (e.key === "Enter") {
+                    searchKeyword = this.value.trim();
+                    renderPlaceList();
+                }
+            });
+
+            // 区域筛选
+            document.querySelectorAll(".category-tab").forEach(tab => {
+                tab.addEventListener("click", function() {
+                    document.querySelectorAll(".category-tab").forEach(t => t.classList.remove("active"));
+                    this.classList.add("active");
+                    currentArea = this.dataset.area;
+                    renderPlaceList();
+                });
+            });
+        }
+
+        // 处理复选框变化
+        function handleCheckboxChange(e) {
+            const value = e.target.value;
+            const checked = e.target.checked;
+
+            if (value === "all") {
+                if (checked) {
+                    document.querySelectorAll('input[name="type"]').forEach(cb => {
+                        cb.checked = cb.value === "all";
+                    });
+                    selectedTypes = [];
+                }
+            } else {
+                document.querySelector('input[name="type"][value="all"]').checked = false;
+
+                if (checked) {
+                    selectedTypes.push(value);
+                } else {
+                    selectedTypes = selectedTypes.filter(t => t !== value);
+                }
+
+                if (selectedTypes.length === 0) {
+                    document.querySelector('input[name="type"][value="all"]').checked = true;
+                }
+            }
+
+            renderSelectedTags();
+            renderPlaceList();
+        }
+
+        // 渲染已选标签
+        function renderSelectedTags() {
+            const container = document.getElementById("selectedTags");
+            if (selectedTypes.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+
+            let html = '<span class="selected-tags-label">已选：</span>';
+            selectedTypes.forEach(type => {
+                html += `
+                    <span class="tag">
+                        ${type}
+                        <span class="tag-remove" data-type="${type}">×</span>
+                    </span>
+                `;
+            });
+            html += '<span class="clear-all" id="clearAll">清除全部</span>';
+            container.innerHTML = html;
+
+            document.querySelectorAll('.tag-remove').forEach(btn => {
+                btn.addEventListener("click", function() {
+                    const type = this.dataset.type;
+                    document.querySelector(`input[name="type"][value="${type}"]`).checked = false;
+                    selectedTypes = selectedTypes.filter(t => t !== type);
+                    if (selectedTypes.length === 0) {
+                        document.querySelector('input[name="type"][value="all"]').checked = true;
+                    }
+                    renderSelectedTags();
+                    renderPlaceList();
+                });
+            });
+
+            document.getElementById("clearAll").addEventListener("click", function() {
+                selectedTypes = [];
+                document.querySelectorAll('input[name="type"]').forEach(cb => {
+                    cb.checked = cb.value === "all";
+                });
+                renderSelectedTags();
+                renderPlaceList();
+            });
+        }
+
+        // 筛选数据
+        function filterData() {
+            let list = [...resourceData];
+
+            if (selectedTypes.length > 0) {
+                list = list.filter(item => selectedTypes.includes(item.type));
+            }
+
+            if (currentArea !== "all") {
+                list = list.filter(item => item.area === currentArea);
+            }
+
+            if (searchKeyword) {
+                list = list.filter(item =>
+                    item.name.includes(searchKeyword) ||
+                    item.desc.includes(searchKeyword) ||
+                    item.address.includes(searchKeyword)
+                );
+            }
+
+            return list;
+        }
+
+        // 渲染左侧列表
+        function renderPlaceList() {
+            const list = filterData();
+            const container = document.getElementById("placeList");
+            const countEl = document.getElementById("panelCount");
+
+            countEl.textContent = `共 ${list.length} 条`;
+
+            if (list.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无匹配的资源</div>';
+                return;
+            }
+
+            let html = "";
+            list.forEach(item => {
+                const isActive = item.id === selectedId ? " active" : "";
+                html += `
+                    <div class="place-item${isActive}" data-id="${item.id}">
+                        <div class="place-name">${item.name}</div>
+                        <div class="place-meta">
+                            <span>📍 ${item.area}</span>
+                            <span>🏷️ ${item.type}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+
+            document.querySelectorAll(".place-item").forEach(item => {
+                item.addEventListener("click", function() {
+                    const id = Number(this.dataset.id);
+                    selectPlace(id);
+                });
+            });
+        }
+
+        // 选中场所
+        function selectPlace(id) {
+            selectedId = id;
+            const item = resourceData.find(d => d.id === id);
+            if (!item) return;
+
+            document.querySelectorAll(".place-item").forEach(el => {
+                el.classList.toggle("active", Number(el.dataset.id) === id);
+            });
+
+            document.getElementById("emptyState").style.display = "none";
+            const detailContent = document.getElementById("detailContent");
+            detailContent.style.display = "flex";
+
+            document.getElementById("detailTitle").textContent = item.name;
+
+            document.getElementById("detailTags").innerHTML = `
+                <div class="detail-tag">${item.area}</div>
+                <div class="detail-tag">${item.type}</div>
+            `;
+
+            document.getElementById("detailInfo").innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">详细地址</div>
+                    <div class="info-value">${item.address}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">所属区域</div>
+                    <div class="info-value">${item.area}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">资源类型</div>
+                    <div class="info-value">${item.type}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">年代/时间</div>
+                    <div class="info-value">${item.time || "暂无"}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">保护级别</div>
+                    <div class="info-value">${item.protectLevel || "暂无"}</div>
+                </div>
+            `;
+
+            document.getElementById("detailDesc").textContent = item.desc;
+
+            // 初始化或更新地图
+            initMap(item);
+
+            // 相关推荐
+            const related = resourceData
+                .filter(d => d.id !== id && d.type === item.type)
+                .slice(0, 4);
+            document.getElementById("relatedList").innerHTML = related.map(r => `
+                <div class="related-item" data-id="${r.id}">
+                    <div class="related-name">${r.name}</div>
+                    <div class="related-area">📍 ${r.area} | ${r.type}</div>
+                </div>
+            `).join("");
+
+            document.querySelectorAll(".related-item").forEach(el => {
+                el.addEventListener("click", function() {
+                    const relId = Number(this.dataset.id);
+                    selectPlace(relId);
+                    const targetItem = document.querySelector(`.place-item[data-id="${relId}"]`);
+                    if (targetItem) {
+                        targetItem.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                });
+            });
+        }
+
+        // 初始化地图
+        function initMap(item) {
+            const mapContainer = document.getElementById("mapContainer");
+
+            // 清空之前的地图
+            mapContainer.innerHTML = "";
+
+            // 创建地图实例
+            map = new AMap.Map(mapContainer, {
+                zoom: 15,
+                center: [item.lng, item.lat],
+                viewMode: '2D'
+            });
+
+            // 清除之前的标记
+            markers = [];
+
+            // 添加当前资源标记
+            addMarker(item);
+
+            // 地图加载完成后调整大小
+            map.plugin(["AMap.ToolBar"], function() {
+                map.addControl(new AMap.ToolBar());
+            });
+        }
+
+        // 添加标记点
+        function addMarker(item) {
+            // 创建自定义图标
+            const icon = new AMap.Icon({
+                size: new AMap.Size(32, 32),
+                image: 'https://webapi.amap.com/theme/v1.3/markers/n/markers.png',
+                imageOffset: new AMap.Pixel(0, -320),
+                imageSize: new AMap.Size(32, 32)
+            });
+
+            const marker = new AMap.Marker({
+                position: [item.lng, item.lat],
+                icon: icon,
+                title: item.name,
+                map: map
+            });
+
+            // 信息窗体内容
+            const infoContent = `
+                <div class="info-window">
+                    <div class="info-window-title">${item.name}</div>
+                    <div class="info-window-desc">${item.desc.substring(0, 60)}...</div>
+                    <button class="info-window-btn" onclick="selectPlace(${item.id})">查看详情</button>
+                </div>
+            `;
+
+            // 创建信息窗体
+            const infoWindow = new AMap.InfoWindow({
+                content: infoContent,
+                offset: new AMap.Pixel(0, -30)
+            });
+
+            // 点击标记显示信息窗体
+            marker.on('click', function() {
+                infoWindow.open(map, marker.getPosition());
+            });
+
+            markers.push(marker);
+
+            // 自动打开信息窗体
+            infoWindow.open(map, marker.getPosition());
+        }
+    </script>
+</body>
+</html>
